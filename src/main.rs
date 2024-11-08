@@ -165,9 +165,6 @@ pub struct ChatUsage {
     pub total_tokens: u32,
 }
 
-
-// ... [Main function remains the same] ...
-
 // ---- Implementation ----
 
 impl LearningSystem {
