@@ -331,18 +331,22 @@ impl LearningSystem {
     fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Vec<&Card> {
         let mut available_time = duration_minutes;
         let mut session_cards = Vec::new();
+        let now = Utc::now();
         
-        // Get due cards first, excluding recently successful ones
+        // Get due cards first, excluding recently successful ones and already seen cards
         let mut due_cards: Vec<&Card> = self.get_due_cards().into_iter()
             .filter(|c| {
                 c.goal_id == goal_id && 
-                // Only include if either:
+                // Only include if:
                 // 1. Card hasn't been reviewed recently, or
                 // 2. Last review wasn't successful (success_rate < 0.8)
+                // 3. Card hasn't been seen in this session
                 match c.last_reviewed {
                     Some(last_review) => {
-                        let hours_since_review = (Utc::now() - last_review).num_hours();
-                        hours_since_review > 24 || c.success_rate < 0.8
+                        let hours_since_review = (now - last_review).num_hours();
+                        // Check if card was reviewed in this session (e.g., last 30 minutes)
+                        let minutes_since_review = (now - last_review).num_minutes();
+                        minutes_since_review > 30 && (hours_since_review > 24 || c.success_rate < 0.8)
                     },
                     None => true
                 }
@@ -371,7 +375,9 @@ impl LearningSystem {
                 // Add time-based filter here too
                 && match c.last_reviewed {
                     Some(last_review) => {
-                        (Utc::now() - last_review).num_hours() > 12
+                        let minutes_since_review = (now - last_review).num_minutes();
+                        // Exclude cards seen in the last 30 minutes
+                        minutes_since_review > 30 && (now - last_review).num_hours() > 12
                     },
                     None => true
                 }
