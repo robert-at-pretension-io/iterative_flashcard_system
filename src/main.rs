@@ -335,11 +335,14 @@ impl LearningSystem {
         let client = Client::new();
         let request = ChatCompletionRequest {
             model: model.to_string(),
-            messages,
+            messages: messages.clone(),
             temperature,
             max_tokens,
             n: Some(1),
         };
+
+        // Log the complete request payload
+        log!("Request payload: {}", serde_json::to_string_pretty(&request).unwrap_or_default());
 
         log!("Sending request to OpenAI API...");
         let response = match client
@@ -358,13 +361,18 @@ impl LearningSystem {
         log!("Received response with status: {}", response.status());
 
         if response.status().is_success() {
-            match response.json().await {
+            // Clone the response body for logging
+            let response_text = response.text().await?;
+            log!("Raw API response: {}", response_text);
+            
+            match serde_json::from_str(&response_text) {
                 Ok(result) => {
                     log!("Successfully parsed API response");
                     Ok(result)
                 },
                 Err(e) => {
                     log!("ERROR: Failed to parse API response: {}", e);
+                    log!("Failed response content: {}", response_text);
                     Err(Box::new(e))
                 }
             }
@@ -491,11 +499,15 @@ impl LearningSystem {
                      3) Key learning points for improvement. \
                      Format as JSON.";
 
+        log!("Generating evaluation with prompt: {}", prompt);
+        
         let mut eval_messages = messages.to_vec();
         eval_messages.push(ChatMessage {
             role: "system".to_string(),
             content: prompt.to_string(),
         });
+
+        log!("Full evaluation messages: {:?}", eval_messages);
 
         let response = self.generate_chat_completion(
             api_key,
@@ -505,7 +517,11 @@ impl LearningSystem {
             Some(500),
         ).await?;
 
-        let eval_json: serde_json::Value = serde_json::from_str(&response.choices[0].message.content)?;
+        log!("Parsing evaluation response: {:?}", response);
+
+        match serde_json::from_str(&response.choices[0].message.content) {
+            Ok(eval_json) => {
+                log!("Successfully parsed evaluation JSON");
         
         Ok(Discussion {
             id: Uuid::new_v4(),
@@ -890,7 +906,7 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let api_key = match std::env::var("OPENAI_API_KEY") {
+    let _api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully retrieved API key");
             key
