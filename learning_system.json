@@ -1,0 +1,936 @@
+{
+  "version": 0,
+  "goals": [
+    {
+      "id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "description": "Comptia security+",
+      "criteria": [
+        "Achieve a score of at least 750 on the CompTIA Security+ exam.",
+        "Complete at least five practice exams with an average score of 80% or higher.",
+        "Attend a minimum of three study sessions or training workshops prior to the exam."
+      ],
+      "tags": [
+        "prevention",
+        "security best practices",
+        "hashing",
+        "compliance",
+        "VPN",
+        "IPS",
+        "PKI",
+        "monitoring",
+        "security awareness",
+        "cybersecurity",
+        "social engineering",
+        "risk management",
+        "training",
+        "patch management",
+        "man-in-the-middle",
+        "authentication",
+        "proxy server",
+        "network security",
+        "IDS",
+        "encryption",
+        "CompTIA Security+",
+        "data integrity",
+        "CIA triad",
+        "security policy",
+        "information security",
+        "firewall",
+        "data security",
+        "vulnerability management"
+      ],
+      "status": "Active",
+      "created_at": "2024-11-08T21:39:50.405488Z"
+    },
+    {
+      "id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "description": "Emotional stability",
+      "criteria": [
+        "1. Demonstrate the ability to manage emotions independently in at least 4 out of 5 challenging situations each month.",
+        "2. Maintain a self-reported emotional stability score of 8 or higher on a 10-point scale during weekly self-assessments.",
+        "3. Successfully implement at least 3 personal coping strategies during periods of stress, as tracked in a journal over a three-month period."
+      ],
+      "tags": [
+        "Mental Health",
+        "Mindfulness",
+        "emotional regulation",
+        "physical health",
+        "self-reflection",
+        "Cognitive Behavioral Therapy",
+        "Psychology",
+        "characteristics",
+        "behavior",
+        "Stress Management",
+        "relationships",
+        "Social Psychology",
+        "self-awareness",
+        "Self-Improvement",
+        "Emotional Intelligence",
+        "personal boundaries",
+        "emotional stability",
+        "well-being",
+        "techniques"
+      ],
+      "status": "Active",
+      "created_at": "2024-11-08T23:03:29.029069Z"
+    }
+  ],
+  "cards": [
+    {
+      "id": "90057209-d9a4-4c55-8335-191de1246ecc",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is the primary purpose of a firewall in network security?",
+      "answer": "The primary purpose of a firewall is to monitor and control incoming and outgoing network traffic based on predetermined security rules.",
+      "context": "Firewalls serve as a barrier between trusted internal networks and untrusted external networks, helping to prevent unauthorized access and threats.",
+      "difficulty": 2,
+      "tags": [
+        "network security",
+        "firewall",
+        "CompTIA Security+"
+      ],
+      "created_at": "2024-11-08T21:40:14.952760Z",
+      "review_count": 2,
+      "success_rate": 0.25,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:40:14.952761Z",
+        "next_review": "2024-11-08T21:40:14.952761Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T22:16:08.153254Z"
+    },
+    {
+      "id": "76a263d6-b15a-4e05-a266-b53ac521f09a",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "Explain the difference between symmetric and asymmetric encryption.",
+      "answer": "Symmetric encryption uses the same key for both encryption and decryption, making it faster but less secure. Asymmetric encryption uses a pair of keys (public and private) for encryption and decryption, enhancing security at the cost of speed.",
+      "context": "Understanding the differences between these encryption methods is crucial for implementing secure communications and protecting sensitive data.",
+      "difficulty": 3,
+      "tags": [
+        "encryption",
+        "data security",
+        "CompTIA Security+"
+      ],
+      "created_at": "2024-11-08T21:40:14.952769Z",
+      "review_count": 2,
+      "success_rate": 0.4,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:40:14.952769Z",
+        "next_review": "2024-11-08T21:40:14.952770Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T22:17:39.967440Z"
+    },
+    {
+      "id": "54980a25-c535-4340-8764-050e85988c74",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is a man-in-the-middle attack and how can it be mitigated?",
+      "answer": "A man-in-the-middle attack occurs when an attacker secretly intercepts and relays communication between two parties. It can be mitigated by using encryption (like TLS) and ensuring the authenticity of communication endpoints.",
+      "context": "Recognizing different types of attacks and their mitigation strategies is essential for maintaining secure systems and networks.",
+      "difficulty": 4,
+      "tags": [
+        "cybersecurity",
+        "man-in-the-middle",
+        "CompTIA Security+"
+      ],
+      "created_at": "2024-11-08T21:40:14.952774Z",
+      "review_count": 1,
+      "success_rate": 0.6,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:40:14.952775Z",
+        "next_review": "2024-11-08T21:40:14.952775Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:46:40.624721Z"
+    },
+    {
+      "id": "2f4e9b29-d066-4c27-a748-c733984604c1",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What does the CIA triad stand for in information security?",
+      "answer": "The CIA triad stands for Confidentiality, Integrity, and Availability, which are fundamental principles that guide security policies and practices.",
+      "context": "Understanding the CIA triad helps security professionals prioritize their efforts to protect information and systems from various threats.",
+      "difficulty": 2,
+      "tags": [
+        "information security",
+        "CIA triad",
+        "CompTIA Security+"
+      ],
+      "created_at": "2024-11-08T21:40:14.952779Z",
+      "review_count": 1,
+      "success_rate": 0.7,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:40:14.952779Z",
+        "next_review": "2024-11-08T21:40:14.952780Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:48:30.840810Z"
+    },
+    {
+      "id": "93371368-d875-4ff2-92ac-deaac4d85ec1",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "How does multifactor authentication enhance security?",
+      "answer": "Multifactor authentication enhances security by requiring two or more verification factors, which makes it more difficult for unauthorized users to gain access, even if they have the password.",
+      "context": "Implementing multifactor authentication is a best practice for protecting sensitive systems and data from breaches.",
+      "difficulty": 3,
+      "tags": [
+        "authentication",
+        "security best practices",
+        "CompTIA Security+"
+      ],
+      "created_at": "2024-11-08T21:40:14.952784Z",
+      "review_count": 1,
+      "success_rate": 0.4,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:40:14.952784Z",
+        "next_review": "2024-11-08T21:40:14.952784Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:50:51.397344Z"
+    },
+    {
+      "id": "a88b72b1-aa70-479e-a36e-b1776b8d53ba",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is the role of an Intrusion Detection System (IDS) in network security?",
+      "answer": "The role of an Intrusion Detection System (IDS) is to monitor network traffic for suspicious activity and potential threats, alerting administrators to possible security breaches.",
+      "context": "IDS can identify and respond to intrusions by logging events and generating alerts, which helps in the timely mitigation of attacks.",
+      "difficulty": 3,
+      "tags": [
+        "network security",
+        "IDS",
+        "monitoring"
+      ],
+      "created_at": "2024-11-08T21:41:28.391467Z",
+      "review_count": 1,
+      "success_rate": 0.6,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:41:28.391471Z",
+        "next_review": "2024-11-08T21:41:28.391471Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:51:57.752394Z"
+    },
+    {
+      "id": "e001ca64-409b-49eb-8da6-89112bc18699",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is social engineering and how can it be prevented?",
+      "answer": "Social engineering is a manipulation technique that exploits human psychology to gain confidential information. Prevention can involve training employees to recognize phishing attempts and implementing strict access controls.",
+      "context": "Attackers often use social engineering tactics to trick individuals into revealing sensitive information or access credentials.",
+      "difficulty": 4,
+      "tags": [
+        "security awareness",
+        "social engineering",
+        "prevention"
+      ],
+      "created_at": "2024-11-08T21:41:28.391488Z",
+      "review_count": 1,
+      "success_rate": 0.6,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:41:28.391488Z",
+        "next_review": "2024-11-08T21:41:28.391488Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:54:37.895172Z"
+    },
+    {
+      "id": "c184e2da-662e-4ab7-8261-ebb78dd30e64",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What are the key differences between a VPN and a proxy server?",
+      "answer": "A VPN encrypts all internet traffic and routes it through a secure server, providing privacy and security, while a proxy server forwards requests and can hide the user's IP but does not encrypt traffic.",
+      "context": "Both VPNs and proxies can enhance online privacy, but they serve different functions and provide varying levels of security.",
+      "difficulty": 3,
+      "tags": [
+        "VPN",
+        "proxy server",
+        "network security"
+      ],
+      "created_at": "2024-11-08T21:41:28.391499Z",
+      "review_count": 1,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:41:28.391499Z",
+        "next_review": "2024-11-08T21:41:28.391500Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:55:16.308279Z"
+    },
+    {
+      "id": "9e55e69f-a388-40c2-b7ce-9846efaa1462",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is the purpose of patch management in cybersecurity?",
+      "answer": "The purpose of patch management is to identify, acquire, install, and verify patches for software vulnerabilities to protect systems from exploits and security threats.",
+      "context": "Regular patch management is essential to maintain software security and to mitigate risks associated with known vulnerabilities.",
+      "difficulty": 3,
+      "tags": [
+        "patch management",
+        "vulnerability management",
+        "cybersecurity"
+      ],
+      "created_at": "2024-11-08T21:41:28.391510Z",
+      "review_count": 1,
+      "success_rate": 0.6,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:41:28.391510Z",
+        "next_review": "2024-11-08T21:41:28.391511Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:56:35.321227Z"
+    },
+    {
+      "id": "a6b5ba28-dd8a-4f88-ac5b-42c21195d074",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "Describe the concept of risk management in the context of information security.",
+      "answer": "Risk management in information security involves identifying, assessing, and prioritizing risks followed by coordinated efforts to minimize, monitor, and control the probability or impact of unfortunate events.",
+      "context": "Effective risk management is crucial for protecting organizational assets and ensuring compliance with regulations.",
+      "difficulty": 4,
+      "tags": [
+        "risk management",
+        "information security",
+        "compliance"
+      ],
+      "created_at": "2024-11-08T21:41:28.391521Z",
+      "review_count": 1,
+      "success_rate": 0.4,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:41:28.391522Z",
+        "next_review": "2024-11-08T21:41:28.391522Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T21:58:36.646103Z"
+    },
+    {
+      "id": "b91e4933-23fa-4b8c-ae7e-63eb955a7d78",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What are the key functions of an Intrusion Prevention System (IPS)?",
+      "answer": "An Intrusion Prevention System (IPS) actively monitors network traffic for vulnerabilities and threats, and can take action to block or mitigate those threats in real time.",
+      "context": "While an IDS detects and alerts on potential threats, an IPS goes a step further by blocking or preventing those threats from causing harm.",
+      "difficulty": 3,
+      "tags": [
+        "network security",
+        "IPS"
+      ],
+      "created_at": "2024-11-08T21:52:20.219778Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:52:20.219779Z",
+        "next_review": "2024-11-08T21:52:20.219780Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "4803c9eb-48cd-4640-b7ed-a9c7f62eca65",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "How does public key infrastructure (PKI) support digital certificate management?",
+      "answer": "Public Key Infrastructure (PKI) provides a framework for creating, managing, distributing, and revoking digital certificates, which are essential for secure communications over networks.",
+      "context": "PKI facilitates the use of asymmetric encryption by ensuring that public keys are authentic and associated with the correct entities.",
+      "difficulty": 4,
+      "tags": [
+        "encryption",
+        "PKI"
+      ],
+      "created_at": "2024-11-08T21:52:20.219828Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:52:20.219829Z",
+        "next_review": "2024-11-08T21:52:20.219829Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "c1959e78-41d1-4321-88b6-c4ee87d299f1",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is the purpose of a security policy in an organization?",
+      "answer": "A security policy outlines the security requirements and expectations for an organization, guiding the implementation of security measures and ensuring compliance with legal and regulatory standards.",
+      "context": "A well-defined security policy helps in establishing a culture of security awareness and provides a framework for handling security incidents.",
+      "difficulty": 2,
+      "tags": [
+        "security policy",
+        "compliance"
+      ],
+      "created_at": "2024-11-08T21:52:20.219835Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:52:20.219835Z",
+        "next_review": "2024-11-08T21:52:20.219835Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "1d045a37-66af-4011-af5f-db7225b2b59e",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What is the significance of using hashing algorithms in data integrity?",
+      "answer": "Hashing algorithms ensure data integrity by generating a unique fixed-size hash value from input data, allowing for the detection of any changes or tampering.",
+      "context": "Common hashing algorithms include SHA-256 and MD5, which are used to verify that data has not been altered during transmission or storage.",
+      "difficulty": 3,
+      "tags": [
+        "data integrity",
+        "hashing"
+      ],
+      "created_at": "2024-11-08T21:52:20.219840Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:52:20.219841Z",
+        "next_review": "2024-11-08T21:52:20.219841Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "5ee79a15-de1c-42be-a915-e598f9ce07e3",
+      "goal_id": "42c39bb8-db0c-4434-b165-882a7f3e68a4",
+      "question": "What are the benefits of implementing a security awareness training program?",
+      "answer": "A security awareness training program educates employees about security risks, promotes safe practices, and reduces the likelihood of human error, which is a significant factor in many security breaches.",
+      "context": "Regular training helps employees recognize phishing attempts and other social engineering tactics, thereby strengthening the overall security posture of the organization.",
+      "difficulty": 2,
+      "tags": [
+        "training",
+        "security awareness"
+      ],
+      "created_at": "2024-11-08T21:52:20.219848Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T21:52:20.219848Z",
+        "next_review": "2024-11-08T21:52:20.219848Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "729d9fe4-e083-4080-bff5-7eea36124509",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "What are the key characteristics of emotional stability?",
+      "answer": "Key characteristics of emotional stability include resilience, adaptability, consistent mood regulation, and the ability to handle stress and adversity effectively.",
+      "context": "Emotional stability refers to an individual's ability to maintain a balanced emotional state and to respond to stressors without excessive emotional reactions.",
+      "difficulty": 2,
+      "tags": [
+        "Emotional Intelligence",
+        "Psychology",
+        "Mental Health"
+      ],
+      "created_at": "2024-11-08T23:04:01.265110Z",
+      "review_count": 1,
+      "success_rate": 0.5,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:04:01.265110Z",
+        "next_review": "2024-11-08T23:04:01.265111Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": "2024-11-08T23:05:09.546307Z"
+    },
+    {
+      "id": "9092576b-5dc8-4e49-a08a-05b82d436986",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "How can practicing mindfulness improve emotional stability?",
+      "answer": "Practicing mindfulness can improve emotional stability by enhancing self-awareness, reducing reactivity to stress, and promoting emotional regulation through focused attention and acceptance of the present moment.",
+      "context": "Mindfulness techniques, such as meditation and deep breathing, encourage individuals to observe their thoughts and emotions without judgment, which can lead to greater emotional control.",
+      "difficulty": 3,
+      "tags": [
+        "Mindfulness",
+        "Emotional Intelligence",
+        "Stress Management"
+      ],
+      "created_at": "2024-11-08T23:04:01.265119Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:04:01.265119Z",
+        "next_review": "2024-11-08T23:04:01.265119Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "c094347b-ac5d-45f2-a294-557f95bc8eef",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "Explain how cognitive restructuring contributes to emotional stability.",
+      "answer": "Cognitive restructuring helps individuals identify and challenge negative thought patterns, leading to more positive and balanced perspectives, which promotes emotional stability and reduces anxiety.",
+      "context": "This psychological technique is often used in cognitive-behavioral therapy to aid individuals in reframing their thoughts and managing their emotional responses.",
+      "difficulty": 4,
+      "tags": [
+        "Cognitive Behavioral Therapy",
+        "Psychology",
+        "Emotional Intelligence"
+      ],
+      "created_at": "2024-11-08T23:04:01.265124Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:04:01.265124Z",
+        "next_review": "2024-11-08T23:04:01.265124Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "1b36caa7-ef57-41b0-a7f4-fad52bb288de",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "What role does social support play in maintaining emotional stability?",
+      "answer": "Social support provides individuals with emotional resources, practical assistance, and a sense of belonging, which can buffer against stress and enhance emotional stability.",
+      "context": "Strong relationships and social networks can help individuals cope with challenges, leading to improved mental health and resilience.",
+      "difficulty": 3,
+      "tags": [
+        "Social Psychology",
+        "Emotional Intelligence",
+        "Mental Health"
+      ],
+      "created_at": "2024-11-08T23:04:01.265129Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:04:01.265129Z",
+        "next_review": "2024-11-08T23:04:01.265129Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "0e0481ff-395d-4a8a-b6c8-f7c4eac56bf6",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "Describe a practical strategy to enhance emotional stability in daily life.",
+      "answer": "One practical strategy is to maintain a daily gratitude journal, where individuals write down things they are thankful for, which can shift focus from negative to positive experiences and enhance overall emotional well-being.",
+      "context": "Gratitude practices have been shown to increase feelings of happiness and decrease feelings of depression, contributing to greater emotional stability over time.",
+      "difficulty": 2,
+      "tags": [
+        "Self-Improvement",
+        "Emotional Intelligence",
+        "Mental Health"
+      ],
+      "created_at": "2024-11-08T23:04:01.265134Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:04:01.265134Z",
+        "next_review": "2024-11-08T23:04:01.265134Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "7695b6e3-3d7e-4123-a3cd-7cf8c0945c93",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "What are some signs that indicate a person has high emotional stability?",
+      "answer": "Signs of high emotional stability include calmness under pressure, consistent emotional responses, the ability to recover quickly from setbacks, and effective stress management.",
+      "context": "Emotional stability is often reflected in behavior and emotional responses, which can be observed in various situations.",
+      "difficulty": 2,
+      "tags": [
+        "emotional stability",
+        "characteristics",
+        "behavior"
+      ],
+      "created_at": "2024-11-08T23:05:43.666654Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:05:43.666655Z",
+        "next_review": "2024-11-08T23:05:43.666655Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "f432f25e-0f64-424f-9421-fd53b4a87ded",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "In what ways can physical health impact emotional stability?",
+      "answer": "Physical health can impact emotional stability through effects on mood, energy levels, and stress resilience; regular exercise, proper nutrition, and adequate sleep contribute to better emotional regulation.",
+      "context": "The mind-body connection suggests that taking care of one's physical health can lead to improved emotional well-being.",
+      "difficulty": 3,
+      "tags": [
+        "emotional stability",
+        "physical health",
+        "well-being"
+      ],
+      "created_at": "2024-11-08T23:05:43.666663Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:05:43.666664Z",
+        "next_review": "2024-11-08T23:05:43.666664Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "760a7442-d348-49e5-9a72-470f0cab55a6",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "How can setting personal boundaries contribute to emotional stability?",
+      "answer": "Setting personal boundaries helps individuals protect their emotional space, reduce stress from overcommitment, and maintain healthier relationships, thus enhancing emotional stability.",
+      "context": "Personal boundaries define how much individuals are willing to engage with others, which can influence their emotional state.",
+      "difficulty": 3,
+      "tags": [
+        "emotional stability",
+        "personal boundaries",
+        "relationships"
+      ],
+      "created_at": "2024-11-08T23:05:43.666669Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:05:43.666669Z",
+        "next_review": "2024-11-08T23:05:43.666670Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "b6398684-d5c9-4418-941e-ad8282323fa3",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "What techniques can be used to practice emotional regulation?",
+      "answer": "Techniques for emotional regulation include deep breathing exercises, journaling, engaging in physical activity, and using visualization strategies to manage emotional responses.",
+      "context": "Emotional regulation involves managing one’s emotional responses to different situations, which is crucial for emotional stability.",
+      "difficulty": 4,
+      "tags": [
+        "emotional stability",
+        "emotional regulation",
+        "techniques"
+      ],
+      "created_at": "2024-11-08T23:05:43.666675Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:05:43.666675Z",
+        "next_review": "2024-11-08T23:05:43.666675Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    },
+    {
+      "id": "f9336d2c-bc69-4535-b4f0-6d289c0fb53b",
+      "goal_id": "c352e25e-acbf-46f2-a56e-d13460db0bab",
+      "question": "Why is self-reflection important for improving emotional stability?",
+      "answer": "Self-reflection allows individuals to understand their emotions, identify triggers, and assess their reactions, leading to improved self-awareness and better emotional control.",
+      "context": "Regular self-reflection can help individuals recognize patterns in their emotional responses, which is essential for growth in emotional stability.",
+      "difficulty": 4,
+      "tags": [
+        "emotional stability",
+        "self-reflection",
+        "self-awareness"
+      ],
+      "created_at": "2024-11-08T23:05:43.666680Z",
+      "review_count": 0,
+      "success_rate": 0.0,
+      "spaced_rep": {
+        "last_reviewed": "2024-11-08T23:05:43.666681Z",
+        "next_review": "2024-11-08T23:05:43.666681Z",
+        "interval": 1,
+        "ease_factor": 2.5,
+        "consecutive_correct": 0
+      },
+      "prerequisites": [],
+      "last_reviewed": null
+    }
+  ],
+  "discussions": [
+    {
+      "id": "9236af50-eaac-474f-b907-a96ead74c764",
+      "card_id": "90057209-d9a4-4c55-8335-191de1246ecc",
+      "user_response": "To route network requests, as well as to protect services by having rules in place to keep the network requests from overloading application or getting access to applications that it shouldn't.",
+      "correctness_score": 0.4,
+      "critique": "Strengths:\nThe student recognizes that firewalls have rules in place, indicating an understanding of the concept of security rules.\n\nAreas for Improvement:\nThe response lacks clarity on the fundamental purpose of a firewall, which is primarily to monitor and control network traffic.",
+      "learning_points": [
+        {
+          "content": "Firewalls are primarily designed to monitor and control network traffic based on security rules. (Suggestion: Review the definitions and functions of network security components, particularly firewalls.)",
+          "timestamp": "2024-11-08T21:41:03.340383Z",
+          "mastery_level": 0.3
+        },
+        {
+          "content": "Firewalls act as barriers between trusted and untrusted networks to prevent unauthorized access. (Suggestion: Study the role of firewalls in preventing threats and unauthorized access to applications.)",
+          "timestamp": "2024-11-08T21:41:03.340387Z",
+          "mastery_level": 0.5
+        }
+      ],
+      "timestamp": "2024-11-08T21:41:03.340421Z"
+    },
+    {
+      "id": "2a5b61e3-599b-4a93-b089-f5a3d85a414a",
+      "card_id": "76a263d6-b15a-4e05-a266-b53ac521f09a",
+      "user_response": "I know that there's sorta a lock and key with the asymmetric encription. With symmetric I think the server and the client has the same information -- like a password.",
+      "correctness_score": 0.4,
+      "critique": "Strengths:\nThe response acknowledges the concept of keys in encryption, which is a fundamental aspect of both symmetric and asymmetric encryption.\n\nAreas for Improvement:\nThe explanation of symmetric encryption lacks clarity and detail; the mention of a password does not accurately convey how symmetric encryption functions.\nThe description of asymmetric encryption as 'sorta a lock and key' is vague and does not fully capture the complexity of the public and private key system.",
+      "learning_points": [
+        {
+          "content": "Symmetric encryption involves using a single key for both encryption and decryption, while asymmetric encryption uses a public and private key pair. (Suggestion: Review the definitions and examples of symmetric and asymmetric encryption to gain a clearer understanding.)",
+          "timestamp": "2024-11-08T21:42:12.557924Z",
+          "mastery_level": 0.2
+        }
+      ],
+      "timestamp": "2024-11-08T21:42:12.557946Z"
+    },
+    {
+      "id": "ca88532f-9eb0-489e-86b0-b60a85da7514",
+      "card_id": "54980a25-c535-4340-8764-050e85988c74",
+      "user_response": "A man in the middle attack is when an attacker \"injects\" themselves in between the client and the server in order to either view or alter the packages being sent to the client",
+      "correctness_score": 0.6,
+      "critique": "Strengths:\nThe student correctly identifies that an attacker inserts themselves between the client and server.\n\nAreas for Improvement:\nThe definition lacks clarity on the covert nature of the attack and the relaying aspect of the communication.\nThe student did not mention any mitigation strategies.",
+      "learning_points": [
+        {
+          "content": "Understanding the nature of man-in-the-middle attacks - it's about interception and relaying, not just injection. (Suggestion: Review the full scope of how man-in-the-middle attacks function, focusing on both interception and communication relay.)",
+          "timestamp": "2024-11-08T21:46:40.624673Z",
+          "mastery_level": 0.5
+        },
+        {
+          "content": "Mitigation strategies are critical - encryption and endpoint authentication are key. (Suggestion: Study common practices for secure communications, including TLS and how it works.)",
+          "timestamp": "2024-11-08T21:46:40.624679Z",
+          "mastery_level": 0.0
+        }
+      ],
+      "timestamp": "2024-11-08T21:46:40.624696Z"
+    },
+    {
+      "id": "8d6645c6-abe9-4284-8244-1a7ffd205ed9",
+      "card_id": "2f4e9b29-d066-4c27-a748-c733984604c1",
+      "user_response": "Confidentiality -- only authorized users should be able to access the information\r\nIntegrity -- information on the server should be monitored and not be changed by unauthorized user\r\nAvailability -- the services on the server SHOULD always be available to the authorized users when needed.",
+      "correctness_score": 0.7,
+      "critique": "Strengths:\nThe student accurately identifies the three components of the CIA triad: Confidentiality, Integrity, and Availability.\nThe explanations provided show a basic understanding of the importance of each component.\n\nAreas for Improvement:\nThe response could benefit from a more thorough explanation of how these principles interact with each other.\nClarifying the terms used, such as 'server' in the context of Integrity, could enhance clarity.",
+      "learning_points": [
+        {
+          "content": "Understanding that Confidentiality protects information from unauthorized access. (Suggestion: Provide examples of methods to ensure confidentiality, such as encryption.)",
+          "timestamp": "2024-11-08T21:48:30.840724Z",
+          "mastery_level": 0.8
+        },
+        {
+          "content": "Recognizing that Integrity involves not only monitoring but also ensuring that data remains accurate and trustworthy. (Suggestion: Explain how integrity can be maintained through mechanisms like checksums or hash functions.)",
+          "timestamp": "2024-11-08T21:48:30.840729Z",
+          "mastery_level": 0.6
+        },
+        {
+          "content": "Realizing that Availability means ensuring that systems are operational and accessible when needed. (Suggestion: Discuss strategies for improving availability, such as redundancy or failover systems.)",
+          "timestamp": "2024-11-08T21:48:30.840732Z",
+          "mastery_level": 0.7
+        }
+      ],
+      "timestamp": "2024-11-08T21:48:30.840765Z"
+    },
+    {
+      "id": "788bb7a6-e814-4e07-b7f1-6700f4236d00",
+      "card_id": "93371368-d875-4ff2-92ac-deaac4d85ec1",
+      "user_response": "The administrator has stronger gurantees that the user is who they say they are. In fact, both users and administrators of the system will be more secure with their data.",
+      "correctness_score": 0.4,
+      "critique": "Strengths:\nThe response acknowledges the increased security for both users and administrators.\n\nAreas for Improvement:\nThe explanation lacks specific details about how multifactor authentication works.",
+      "learning_points": [
+        {
+          "content": "Understanding that multifactor authentication requires multiple forms of verification (e.g., something you know, something you have, something you are) - this is crucial for grasping its purpose. (Suggestion: Study the specific components of multifactor authentication and how they contribute to security.)",
+          "timestamp": "2024-11-08T21:50:51.397284Z",
+          "mastery_level": 0.2
+        }
+      ],
+      "timestamp": "2024-11-08T21:50:51.397300Z"
+    },
+    {
+      "id": "138fe6a4-022c-4656-bff9-3c993b3492b3",
+      "card_id": "a88b72b1-aa70-479e-a36e-b1776b8d53ba",
+      "user_response": "Intrusion detection systems can act as an early warning system to enable the sys admin to lock down resources as needed.",
+      "correctness_score": 0.6,
+      "critique": "Strengths:\nThe response correctly identifies that IDS can alert system administrators to potential threats.\n\nAreas for Improvement:\nThe response lacks a comprehensive explanation of the core functions of an IDS, such as monitoring network traffic and identifying suspicious activity.",
+      "learning_points": [
+        {
+          "content": "An IDS monitors network traffic for suspicious activity, not just acting as a warning system. (Suggestion: Include specific functions of IDS like traffic monitoring and alert generation in your explanation.)",
+          "timestamp": "2024-11-08T21:51:57.752330Z",
+          "mastery_level": 0.5
+        }
+      ],
+      "timestamp": "2024-11-08T21:51:57.752352Z"
+    },
+    {
+      "id": "e4708afe-ef58-49e6-bbef-4d4f781b1dac",
+      "card_id": "e001ca64-409b-49eb-8da6-89112bc18699",
+      "user_response": "Social engineering is a way in which malicious actors gain trust of authorized users of a system in order to break into said system.",
+      "correctness_score": 0.6,
+      "critique": "Strengths:\nThe response identifies that social engineering involves gaining trust, which is a key aspect of the technique.\n\nAreas for Improvement:\nThe definition of social engineering lacks specificity regarding the manipulation of human psychology and the types of information targeted.\nPrevention strategies are not mentioned, which is a crucial part of the question.",
+      "learning_points": [
+        {
+          "content": "Understanding that social engineering exploits psychological manipulation to gain sensitive information - This is vital for a complete definition. (Suggestion: Review various types of social engineering techniques, such as phishing and pretexting, to gain a broader understanding.)",
+          "timestamp": "2024-11-08T21:54:37.895106Z",
+          "mastery_level": 0.4
+        },
+        {
+          "content": "Recognizing the importance of prevention strategies against social engineering - Awareness and training are key components. (Suggestion: Research and summarize common prevention methods to strengthen your response.)",
+          "timestamp": "2024-11-08T21:54:37.895112Z",
+          "mastery_level": 0.2
+        }
+      ],
+      "timestamp": "2024-11-08T21:54:37.895126Z"
+    },
+    {
+      "id": "48ec16b2-9282-43e8-8cad-98947c54b22c",
+      "card_id": "c184e2da-662e-4ab7-8261-ebb78dd30e64",
+      "user_response": "Not sure.",
+      "correctness_score": 0.0,
+      "critique": "Strengths:\n\n\nAreas for Improvement:\nThe response lacks any attempt to address the question, indicating a need for improvement in basic understanding of the concepts.",
+      "learning_points": [
+        {
+          "content": "Understanding the basic functions of a VPN and a proxy server is crucial for online privacy and security. (Suggestion: Study the definitions and functionalities of VPNs and proxy servers, focusing on how they handle internet traffic and security.)",
+          "timestamp": "2024-11-08T21:55:16.308206Z",
+          "mastery_level": 0.0
+        }
+      ],
+      "timestamp": "2024-11-08T21:55:16.308218Z"
+    },
+    {
+      "id": "c777ed22-71d8-47e1-af92-8d2c0b51e353",
+      "card_id": "9e55e69f-a388-40c2-b7ce-9846efaa1462",
+      "user_response": "Patch management provides a plan for fixing bugs/hacks in software as they come to light. A good patch management plan will enable the organization to stay virus/intruder free.",
+      "correctness_score": 0.6,
+      "critique": "Strengths:\nThe response acknowledges the role of patch management in addressing software vulnerabilities.\nThe mention of a 'plan for fixing bugs/hacks' reflects an understanding of the proactive nature of patch management.\n\nAreas for Improvement:\nThe response lacks detail on the specific processes involved in patch management, such as identification, acquisition, installation, and verification.\nThe terms 'virus/intruder free' are overly simplistic and do not encompass the broader range of security threats that patch management addresses.",
+      "learning_points": [
+        {
+          "content": "Understanding that patch management involves a systematic approach to software vulnerabilities enhances the effectiveness of cybersecurity measures. (Suggestion: Learn about the specific steps involved in patch management to gain a more comprehensive view.)",
+          "timestamp": "2024-11-08T21:56:35.321126Z",
+          "mastery_level": 0.5
+        }
+      ],
+      "timestamp": "2024-11-08T21:56:35.321183Z"
+    },
+    {
+      "id": "18402f55-4e7c-418f-b434-ea9cb271193c",
+      "card_id": "a6b5ba28-dd8a-4f88-ac5b-42c21195d074",
+      "user_response": "Different assets should have different levels of authorization and authentication. These should be taken into account when designing these systems.",
+      "correctness_score": 0.4,
+      "critique": "Strengths:\nThe response acknowledges the importance of authorization and authentication, which are key components of risk management in information security.\n\nAreas for Improvement:\nThe response lacks a comprehensive understanding of the broader risk management process, including aspects like identification, assessment, and prioritization of risks.",
+      "learning_points": [
+        {
+          "content": "Risk management in information security encompasses a systematic approach that includes risk identification, assessment, prioritization, and mitigation strategies. (Suggestion: Review the full risk management framework and its steps, particularly focusing on identifying and assessing risks.)",
+          "timestamp": "2024-11-08T21:58:36.646038Z",
+          "mastery_level": 0.2
+        }
+      ],
+      "timestamp": "2024-11-08T21:58:36.646066Z"
+    },
+    {
+      "id": "f8ad30f2-4d36-464e-aba5-6726235bd9fd",
+      "card_id": "90057209-d9a4-4c55-8335-191de1246ecc",
+      "user_response": "It does stuff.",
+      "correctness_score": 0.1,
+      "critique": "Strengths:\nThe response acknowledges that a firewall has a function but lacks detail.\n\nAreas for Improvement:\nThe response needs to provide a clear and accurate definition of what a firewall does.",
+      "learning_points": [
+        {
+          "content": "Firewalls are essential for controlling network traffic based on security rules. (Suggestion: Study the specific functions and types of firewalls to understand their roles in network security.)",
+          "timestamp": "2024-11-08T22:16:08.153217Z",
+          "mastery_level": 0.0
+        }
+      ],
+      "timestamp": "2024-11-08T22:16:08.153230Z"
+    },
+    {
+      "id": "ecb1e745-8df9-40cd-b691-5cc8d9e2de6f",
+      "card_id": "76a263d6-b15a-4e05-a266-b53ac521f09a",
+      "user_response": "A symmetric encryption system has the same hash for both encryption and decryption. Asymmetric encryption systems rely on a public key and a private key to encrypt/decrypt data.",
+      "correctness_score": 0.4,
+      "critique": "Strengths:\nIdentified that asymmetric encryption uses a public and private key for encryption and decryption.\n\nAreas for Improvement:\nMisunderstood the concept of symmetric encryption by referring to 'hash' instead of 'key'.",
+      "learning_points": [
+        {
+          "content": "Symmetric encryption uses the same key for both processes, not a hash. (Suggestion: Review the definitions and functions of keys and hashes in encryption.)",
+          "timestamp": "2024-11-08T22:17:39.967299Z",
+          "mastery_level": 0.2
+        }
+      ],
+      "timestamp": "2024-11-08T22:17:39.967338Z"
+    },
+    {
+      "id": "df18bc1a-2211-4023-ac68-bb9288ee66d0",
+      "card_id": "729d9fe4-e083-4080-bff5-7eea36124509",
+      "user_response": "Being able to return to baseline quickly after stressful events. Not overreach when there is a stressful event. being able to self-sooth when there's a stressful event.",
+      "correctness_score": 0.5,
+      "critique": "Strengths:\nThe response identifies an important aspect of emotional stability, which is the ability to return to baseline after stress.\n\nAreas for Improvement:\nThe answer lacks completeness as it does not mention other key characteristics such as resilience, adaptability, and consistent mood regulation.",
+      "learning_points": [
+        {
+          "content": "Understanding the concept of resilience as a key component of emotional stability. (Suggestion: Study examples of resilience in various contexts to see how it manifests in behavior.)",
+          "timestamp": "2024-11-08T23:05:09.546268Z",
+          "mastery_level": 0.4
+        },
+        {
+          "content": "The importance of adaptability in maintaining emotional stability. (Suggestion: Research how adaptability helps individuals cope with change and stress.)",
+          "timestamp": "2024-11-08T23:05:09.546270Z",
+          "mastery_level": 0.3
+        }
+      ],
+      "timestamp": "2024-11-08T23:05:09.546277Z"
+    }
+  ],
+  "progress": {
+    "total_cards_reviewed": 0,
+    "total_study_sessions": 0,
+    "tag_performance": [],
+    "active_goals": [],
+    "completed_goals": [],
+    "last_session": null
+  },
+  "curriculum": []
+}
