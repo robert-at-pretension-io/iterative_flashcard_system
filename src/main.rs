@@ -540,6 +540,101 @@ async fn handle_login(
     }
 }
 
+async fn handle_answer_submission(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
+    Form(form): Form<AnswerSubmission>,
+) -> Result<Html<String>, StatusCode> {
+    let mut state = state.lock().unwrap();
+    
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer).await {
+        Ok(discussion) => {
+            if let Err(e) = state.learning_system.save("learning_system.json") {
+                eprintln!("Error saving state: {}", e);
+            }
+
+            Ok(Html(format!(r#"
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Answer Feedback</title>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                        .feedback-container {{ max-width: 800px; margin: 0 auto; }}
+                        .score {{ 
+                            font-size: 1.2em; 
+                            font-weight: bold; 
+                            color: {}; 
+                            margin: 20px 0;
+                        }}
+                        .critique {{ 
+                            background: #f8f9fa; 
+                            padding: 20px; 
+                            border-radius: 8px; 
+                            margin: 20px 0;
+                        }}
+                        .learning-points {{ margin: 20px 0; }}
+                        .learning-point {{ 
+                            padding: 10px;
+                            margin: 5px 0;
+                            background: #e9ecef;
+                            border-radius: 4px;
+                        }}
+                        .nav-buttons {{ margin-top: 30px; }}
+                        .nav-buttons a {{
+                            display: inline-block;
+                            padding: 10px 20px;
+                            background: #007bff;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 4px;
+                            margin-right: 10px;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="feedback-container">
+                        <h1>Answer Feedback</h1>
+                        
+                        <div class="score">
+                            Score: {:.1}%
+                        </div>
+
+                        <div class="critique">
+                            <h3>Critique:</h3>
+                            <p>{}</p>
+                        </div>
+
+                        <div class="learning-points">
+                            <h3>Key Learning Points:</h3>
+                            {}
+                        </div>
+
+                        <div class="nav-buttons">
+                            <a href="/study/{}">Continue Studying</a>
+                            <a href="/dashboard">Back to Dashboard</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            "#,
+                if discussion.correctness_score >= 0.8 { "#28a745" } else { "#dc3545" },
+                discussion.correctness_score * 100.0,
+                discussion.critique,
+                discussion.learning_points.iter()
+                    .map(|point| format!("<div class=\"learning-point\">{}</div>", point))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                goal_id
+            )))
+        }
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
 async fn show_dashboard(
     State(state): State<Arc<Mutex<AppState>>>,
 ) -> Html<String> {
@@ -626,6 +721,11 @@ struct GoalForm {
     topic: String,
 }
 
+#[derive(Deserialize)]
+struct AnswerSubmission {
+    user_answer: String,
+}
+
 async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<GoalForm>,
@@ -679,13 +779,18 @@ async fn show_study_page(
                     border-radius: 8px;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }}
-                .answer {{ display: none; }}
-                .show-answer {{ 
+                .answer-form {{ margin: 15px 0; }}
+                .answer-input {{ 
+                    width: 100%; 
+                    min-height: 100px; 
+                    margin: 10px 0; 
+                    padding: 8px;
+                }}
+                .submit-btn {{ 
                     background: #007bff; 
                     color: white; 
                     border: none;
-                    padding: 10px;
-                    margin: 10px 0;
+                    padding: 10px 20px;
                     cursor: pointer;
                     border-radius: 4px;
                 }}
@@ -702,19 +807,6 @@ async fn show_study_page(
                     text-decoration: none;
                 }}
             </style>
-            <script>
-                function toggleAnswer(cardId) {{
-                    const answer = document.getElementById(`answer-${{cardId}}`);
-                    const btn = document.getElementById(`btn-${{cardId}}`);
-                    if (answer.style.display === 'none') {{
-                        answer.style.display = 'block';
-                        btn.textContent = 'Hide Answer';
-                    }} else {{
-                        answer.style.display = 'none';
-                        btn.textContent = 'Show Answer';
-                    }}
-                }}
-            </script>
         </head>
         <body>
             <div class="nav-bar">
@@ -737,12 +829,15 @@ async fn show_study_page(
             <div class="card">
                 <h3>{}</h3>
                 <p><strong>Context:</strong> {}</p>
-                <button id="btn-{}" class="show-answer" onclick="toggleAnswer('{}')">
-                    Show Answer
-                </button>
-                <div id="answer-{}" class="answer">
-                    <p><strong>Answer:</strong> {}</p>
-                </div>
+                <form class="answer-form" action="/study/{}/submit/{}" method="POST">
+                    <textarea 
+                        class="answer-input" 
+                        name="user_answer" 
+                        placeholder="Type your answer here..."
+                        required
+                    ></textarea>
+                    <button type="submit" class="submit-btn">Submit Answer</button>
+                </form>
                 <div class="difficulty">
                     Difficulty: {}/5 | Reviews: {} | Success Rate: {:.1}%
                 </div>
@@ -750,10 +845,8 @@ async fn show_study_page(
         "#,
             card.question,
             card.context,
+            goal_id,
             card.id,
-            card.id,
-            card.id,
-            card.answer,
             card.difficulty,
             card.review_count,
             card.success_rate * 100.0
@@ -784,6 +877,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/dashboard", get(show_dashboard))
         .route("/goals/new", get(show_goal_form).post(handle_goal_creation))
         .route("/study/:goal_id", get(show_study_page))
+        .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .with_state(state);
 
     println!("Server running on http://localhost:3000");
