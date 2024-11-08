@@ -328,7 +328,7 @@ impl LearningSystem {
         Ok(())
     }
 
-    fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Result<Vec<&Card>, Box<dyn Error>> {
+    async fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Result<Vec<&Card>, Box<dyn Error>> {
         let mut available_time = duration_minutes;
         let mut session_cards = Vec::new();
         let now = Utc::now();
@@ -395,12 +395,10 @@ impl LearningSystem {
                 c.goal_id == goal_id 
                 && c.success_rate < 0.7 
                 && !session_cards.contains(c)
-                // Add time-based filter here too
                 && match c.last_reviewed {
                     Some(last_review) => {
                         let minutes_since_review = (now - last_review).num_minutes();
-                        // Exclude cards seen in the last 30 minutes
-                        minutes_since_review > 30 && (now - last_review).num_hours() > 12
+                        minutes_since_review > 30
                     },
                     None => true
                 }
@@ -413,7 +411,7 @@ impl LearningSystem {
             available_time -= 2;
         }
 
-        session_cards
+        Ok(session_cards)
     }
 
     fn generate_knowledge_graph(&self, goal_id: Uuid) -> KnowledgeGraphData {
