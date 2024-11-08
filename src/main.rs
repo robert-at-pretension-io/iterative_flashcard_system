@@ -328,25 +328,48 @@ impl LearningSystem {
         Ok(())
     }
 
-    fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Vec<&Card> {
+    fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Result<Vec<&Card>, Box<dyn Error>> {
         let mut available_time = duration_minutes;
         let mut session_cards = Vec::new();
         let now = Utc::now();
         
-        // Get due cards first, excluding recently successful ones and already seen cards
+        // Get available cards (not recently seen)
+        let available_cards: Vec<&Card> = self.cards.iter()
+            .filter(|c| {
+                c.goal_id == goal_id && 
+                match c.last_reviewed {
+                    Some(last_review) => {
+                        let minutes_since_review = (now - last_review).num_minutes();
+                        minutes_since_review > 30
+                    },
+                    None => true
+                }
+            })
+            .collect();
+
+        // If we have very few available cards, generate new ones
+        if available_cards.len() < 5 {
+            log!("Generating new cards for goal {} due to low card count", goal_id);
+            
+            // Get API key from environment
+            let api_key = std::env::var("OPENAI_API_KEY")
+                .map_err(|_| "OpenAI API key not found")?;
+            
+            // Generate new cards
+            let new_cards = self.generate_cards_for_goal(&api_key, goal_id).await?;
+            
+            // Log the generation of new cards
+            log!("Generated {} new cards for goal {}", new_cards.len(), goal_id);
+        }
+
+        // Get due cards first
         let mut due_cards: Vec<&Card> = self.get_due_cards().into_iter()
             .filter(|c| {
                 c.goal_id == goal_id && 
-                // Only include if:
-                // 1. Card hasn't been reviewed recently, or
-                // 2. Last review wasn't successful (success_rate < 0.8)
-                // 3. Card hasn't been seen in this session
                 match c.last_reviewed {
                     Some(last_review) => {
-                        let hours_since_review = (now - last_review).num_hours();
-                        // Check if card was reviewed in this session (e.g., last 30 minutes)
                         let minutes_since_review = (now - last_review).num_minutes();
-                        minutes_since_review > 30 && (hours_since_review > 24 || c.success_rate < 0.8)
+                        minutes_since_review > 30 && (c.success_rate < 0.8)
                     },
                     None => true
                 }
@@ -1189,10 +1212,17 @@ async fn show_practice_session(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
     
     // Generate a 30-minute practice session
-    let practice_cards = state.learning_system.generate_practice_session(goal_id, 30);
+    let practice_cards = state.learning_system.generate_practice_session(goal_id, 30)
+        .await
+        .map_err(|e| AppError::SystemError(e.to_string()))?;
+    
+    // Save state if new cards were generated
+    if let Err(e) = state.learning_system.save("learning_system.json") {
+        log!("Error saving learning system after generating new cards: {}", e);
+    }
     
     Ok(Html(format!(r#"
         <!DOCTYPE html>
