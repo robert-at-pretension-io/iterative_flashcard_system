@@ -752,11 +752,11 @@ Previous Performance: {} reviews, {}% success rate"#,
                 .unwrap_or(&Vec::new())
                 .iter()
                 .map(|point| LearningPoint {
-                    content: point["content"].as_str().unwrap_or("").to_string(),
+                    content: point.as_str().unwrap_or("").to_string(),
                     timestamp: Utc::now(),
-                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
+                    mastery_level: 0.0,
                 })
-                .collect::<Vec<LearningPoint>>(),
+                .collect(),
             timestamp: Utc::now(),
         };
 
@@ -2137,7 +2137,7 @@ async fn main() {
     log!("Starting Iterative Flashcard System");
     
     // Initialize system
-    let api_key = match std::env::var("OPENAI_API_KEY") {
+    let _api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully loaded API key from environment");
             key
