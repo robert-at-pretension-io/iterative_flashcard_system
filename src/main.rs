@@ -1,10 +1,11 @@
 use axum::{
-    response::{IntoResponse, Html},
+    response::{IntoResponse, Html, Json},
     routing::{get, post},
     extract::{State, Form, Path},
     Router,
     http::StatusCode,
 };
+use serde_json::json;
 
 macro_rules! log {
     ($($arg:tt)*) => {{
@@ -203,6 +204,39 @@ pub struct ChatUsage {
 }
 
 // ---- Implementation ----
+
+#[derive(Deserialize)]
+struct CurriculumUpdate {
+    modules: Vec<CurriculumModule>,
+}
+
+async fn update_curriculum(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+    Json(update): Json<CurriculumUpdate>,
+) -> Result<impl IntoResponse, AppError> {
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    // Validate that all modules have valid prerequisites
+    for module in &update.modules {
+        for prereq_id in &module.dependencies {
+            if !update.modules.iter().any(|m| m.id == *prereq_id) {
+                return Err(AppError::SystemError("Invalid prerequisite reference".to_string()));
+            }
+        }
+    }
+    
+    // Update curriculum
+    state.learning_system.curriculum = update.modules;
+    
+    // Save changes
+    if let Err(e) = state.learning_system.save("learning_system.json") {
+        log!("ERROR: Failed to save curriculum changes: {}", e);
+        return Err(AppError::SystemError("Failed to save changes".to_string()));
+    }
+    
+    Ok(Json(json!({ "status": "success" })))
+}
 
 impl LearningSystem {
     fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
@@ -1196,6 +1230,8 @@ async fn main() {
         .route("/goals/new", get(show_goal_form).post(handle_goal_creation))
         .route("/study/:goal_id", get(show_study_page))
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
+        .route("/curriculum/:goal_id", post(update_curriculum))
+        .route("/due-cards", get(get_due_cards))
         .with_state(state);
 
     log!("Starting server on http://localhost:3000");
