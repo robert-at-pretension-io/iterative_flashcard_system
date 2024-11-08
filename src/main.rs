@@ -999,15 +999,32 @@ Format your response as simple text with one criterion per line."#
         let mut attempt = 0;
         
         while attempt < max_retries {
+            // Create the current messages vector for this attempt
+            let current_messages = if attempt == 0 {
+                messages.to_vec()
+            } else {
+                vec![
+                    ChatMessage {
+                        role: "system".to_string(),
+                        content: format!(
+                            "The previous response had invalid JSON. Please provide the flashcards in valid JSON format exactly as follows:\n\
+                            {{\n    \"cards\": [\n        {{\n            \"question\": \"string\",\n            \
+                            \"answer\": \"string\",\n            \"context\": \"string\",\n            \
+                            \"difficulty\": number,\n            \"tags\": [\"string\"]\n        }}\n    ]\n}}"
+                        ),
+                    },
+                    messages.last().unwrap().clone(),
+                ]
+            };
+
             let response = self.generate_chat_completion(
                 api_key,
-                messages.to_vec(),
+                current_messages,
                 "gpt-4o-mini",
                 Some(0.7),
                 Some(1000),
             ).await?;
 
-            // Clean up the response content
             let content = response.choices[0].message.content.replace("```json", "")
                 .replace("```", "")
                 .trim()
@@ -1015,7 +1032,6 @@ Format your response as simple text with one criterion per line."#
 
             log!("Cleaned JSON content: {}", content);
 
-            // Try different JSON parsing approaches
             let parse_result: Result<Vec<serde_json::Value>, String> = match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(json) => {
                     if let Some(cards) = json.get("cards").and_then(|c| c.as_array()) {
@@ -1033,7 +1049,6 @@ Format your response as simple text with one criterion per line."#
 
             match parse_result {
                 Ok(cards_array) => {
-                    // Convert the parsed JSON into Card structs
                     let cards: Result<Vec<Card>, String> = cards_array.iter()
                         .map(|card_json| {
                             let goal_id = self.goals.last()
@@ -1105,22 +1120,6 @@ Format your response as simple text with one criterion per line."#
                 },
                 Err(e) => {
                     log!("ERROR: Failed to parse JSON on attempt {}: {}", attempt + 1, e);
-                    
-                    if attempt < max_retries - 1 {
-                        let retry_messages = vec![
-                            ChatMessage {
-                                role: "system".to_string(),
-                                content: format!(
-                                    "The previous response had invalid JSON. Please provide the flashcards in valid JSON format exactly as follows:\n\
-                                    {{\n    \"cards\": [\n        {{\n            \"question\": \"string\",\n            \
-                                    \"answer\": \"string\",\n            \"context\": \"string\",\n            \
-                                    \"difficulty\": number,\n            \"tags\": [\"string\"]\n        }}\n    ]\n}}"
-                                ),
-                            },
-                            messages.last().unwrap().clone(),
-                        ];
-                        messages = &retry_messages;
-                    }
                     attempt += 1;
                     continue;
                 }
