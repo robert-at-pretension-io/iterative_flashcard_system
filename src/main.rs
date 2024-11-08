@@ -319,9 +319,21 @@ impl LearningSystem {
         let mut available_time = duration_minutes;
         let mut session_cards = Vec::new();
         
-        // Get due cards first
+        // Get due cards first, excluding recently successful ones
         let mut due_cards: Vec<&Card> = self.get_due_cards().into_iter()
-            .filter(|c| c.goal_id == goal_id)
+            .filter(|c| {
+                c.goal_id == goal_id && 
+                // Only include if either:
+                // 1. Card hasn't been reviewed recently, or
+                // 2. Last review wasn't successful (success_rate < 0.8)
+                match c.last_reviewed {
+                    Some(last_review) => {
+                        let hours_since_review = (Utc::now() - last_review).num_hours();
+                        hours_since_review > 24 || c.success_rate < 0.8
+                    },
+                    None => true
+                }
+            })
             .collect();
         
         // Sort by overdue duration
@@ -339,9 +351,18 @@ impl LearningSystem {
 
         // Fill remaining time with cards that need reinforcement
         let weak_cards: Vec<&Card> = self.cards.iter()
-            .filter(|c| c.goal_id == goal_id 
-                   && c.success_rate < 0.7 
-                   && !session_cards.contains(c))
+            .filter(|c| {
+                c.goal_id == goal_id 
+                && c.success_rate < 0.7 
+                && !session_cards.contains(c)
+                // Add time-based filter here too
+                && match c.last_reviewed {
+                    Some(last_review) => {
+                        (Utc::now() - last_review).num_hours() > 12
+                    },
+                    None => true
+                }
+            })
             .collect();
 
         for card in weak_cards {
