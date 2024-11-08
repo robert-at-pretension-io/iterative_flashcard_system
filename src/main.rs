@@ -134,13 +134,20 @@ pub struct Card {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LearningPoint {
+    pub content: String,
+    pub timestamp: DateTime<Utc>,
+    pub mastery_level: f32,  // 0-1 scale indicating understanding
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Discussion {
     pub id: Uuid,
     pub card_id: Uuid,
     pub user_response: String,
     pub correctness_score: f32,  // 0-1 scale
     pub critique: String,
-    pub learning_points: Vec<String>,
+    pub learning_points: Vec<LearningPoint>,
     pub timestamp: DateTime<Utc>,
 }
 
@@ -545,14 +552,63 @@ impl LearningSystem {
             .find(|g| g.id == goal_id)
             .ok_or("Goal not found")?;
 
+        // Get all relevant curriculum modules
+        let curriculum_context = self.curriculum.iter()
+            .filter(|module| module.topics.iter().any(|topic| 
+                topic.cards.iter().any(|card_id| 
+                    self.cards.iter().any(|c| c.id == *card_id && c.goal_id == goal_id)
+                )
+            ))
+            .collect::<Vec<_>>();
+
+        // Gather learning points from recent discussions
+        let recent_learning_points = self.discussions.iter()
+            .filter(|d| {
+                let card = self.cards.iter().find(|c| c.id == d.card_id);
+                card.map_or(false, |c| c.goal_id == goal_id)
+            })
+            .flat_map(|d| d.learning_points.clone())
+            .collect::<Vec<_>>();
+
+        // Get struggling areas (cards with low success rates)
+        let struggling_cards = self.cards.iter()
+            .filter(|c| c.goal_id == goal_id && c.success_rate < 0.7)
+            .collect::<Vec<_>>();
+
+        // Build comprehensive prompt
         let messages = vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: "Create a series of flashcards to help achieve this learning goal.".to_string(),
+                content: format!(
+                    "You are creating targeted flashcards for a learning goal. Focus on:\n\
+                    1. Areas where the student has shown difficulty\n\
+                    2. Topics that connect to their recent learning points\n\
+                    3. Progressive difficulty building on mastered concepts\n\
+                    4. Alignment with curriculum objectives"
+                ),
             },
             ChatMessage {
                 role: "user".to_string(),
-                content: format!("Goal: {}\nCriteria: {:?}", goal.description, goal.criteria),
+                content: format!(
+                    "Goal: {}\n\n\
+                    Curriculum Context:\n{}\n\n\
+                    Recent Learning Points (Last 30 days):\n{}\n\n\
+                    Struggling Areas:\n{}\n\n\
+                    Generate flashcards that address these specific challenges while following the curriculum progression.",
+                    goal.description,
+                    curriculum_context.iter()
+                        .map(|m| format!("Module: {}\n{}", m.title, m.description))
+                        .collect::<Vec<_>>()
+                        .join("\n\n"),
+                    recent_learning_points.iter()
+                        .map(|lp| format!("- {} (Mastery: {:.1})", lp.content, lp.mastery_level))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    struggling_cards.iter()
+                        .map(|c| format!("- {} (Success Rate: {:.1}%)", c.question, c.success_rate * 100.0))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ),
             },
         ];
 
@@ -577,30 +633,58 @@ impl LearningSystem {
         let messages = vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: "Evaluate the user's response to this flashcard.".to_string(),
+                content: "Evaluate the response and provide specific learning points with mastery levels.".to_string(),
             },
             ChatMessage {
                 role: "user".to_string(),
                 content: format!(
-                    "Question: {}\nCorrect Answer: {}\nUser Response: {}\nContext: {}",
+                    "Question: {}\nCorrect Answer: {}\nUser Response: {}\nContext: {}\n\n\
+                    Return a JSON object with these properties:\n\
+                    {\n\
+                      \"score\": number (0-1),\n\
+                      \"critique\": \"detailed feedback\",\n\
+                      \"learning_points\": [\n\
+                        { \"content\": \"specific point\", \"mastery\": number (0-1) }\n\
+                      ]\n\
+                    }",
                     card.question, card.answer, user_response, card.context
                 ),
             },
         ];
 
         log!("Sending evaluation request to OpenAI API");
-        match self.generate_evaluation(&api_key, &messages).await {
-            Ok(discussion) => {
-                log!("Successfully generated evaluation with score: {}", discussion.correctness_score);
-                self.discussions.push(discussion.clone());
-                self.update_statistics(card_id, &discussion);
-                Ok(discussion)
-            },
-            Err(e) => {
-                log!("ERROR: Failed to generate evaluation: {}", e);
-                Err(e)
-            }
-        }
+        let response = self.generate_chat_completion(
+            api_key,
+            messages,
+            "gpt-4",
+            Some(0.7),
+            Some(500),
+        ).await?;
+
+        let eval: serde_json::Value = serde_json::from_str(&response.choices[0].message.content)?;
+        
+        let discussion = Discussion {
+            id: Uuid::new_v4(),
+            card_id,
+            user_response: user_response.to_string(),
+            correctness_score: eval["score"].as_f64().unwrap_or(0.0) as f32,
+            critique: eval["critique"].as_str().unwrap_or("").to_string(),
+            learning_points: eval["learning_points"].as_array()
+                .unwrap_or(&Vec::new())
+                .iter()
+                .map(|point| LearningPoint {
+                    content: point["content"].as_str().unwrap_or("").to_string(),
+                    timestamp: Utc::now(),
+                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
+                })
+                .collect(),
+            timestamp: Utc::now(),
+        };
+
+        log!("Successfully generated evaluation with score: {}", discussion.correctness_score);
+        self.discussions.push(discussion.clone());
+        self.update_statistics(card_id, &discussion);
+        Ok(discussion)
     }
 
     // Progress Tracking
