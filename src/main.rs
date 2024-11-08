@@ -1,11 +1,30 @@
 use axum::{
+    response::{Response, IntoResponse, Html},
     routing::{get, post},
-    Router,
-    response::{Html, IntoResponse},
     extract::{State, Form, Path},
+    Router,
     http::StatusCode,
 };
 use tokio::net::TcpListener;
+
+#[derive(Debug)]
+enum AppError {
+    SystemError(String),
+    AuthError(String),
+    NotFound(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, message) = match self {
+            AppError::SystemError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
+            AppError::AuthError(msg) => (StatusCode::UNAUTHORIZED, msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
+        };
+        
+        (status, Html(message)).into_response()
+    }
+}
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
@@ -503,8 +522,8 @@ async fn show_login() -> Html<String> {
 async fn handle_login(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<LoginForm>,
-) -> Result<Html<String>, StatusCode> {
-    let mut state = state.lock().unwrap();
+) -> Result<impl IntoResponse, AppError> {
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
     let ip = "127.0.0.1".to_string(); // In production, extract real IP
     
     // Check if IP is blocked
@@ -523,7 +542,9 @@ async fn handle_login(
     }
 
     // Verify password
-    if verify(&form.password, &state.password_hash).unwrap_or(false) {
+    if verify(&form.password, &state.password_hash)
+        .map_err(|_| AppError::SystemError("Password verification failed".to_string()))? 
+    {
         state.login_attempts.remove(&ip);
         Ok(Html(r#"<script>window.location.href = '/dashboard';</script>"#.to_string()))
     } else {
@@ -541,21 +562,24 @@ async fn handle_login(
     }
 }
 
+#[axum::debug_handler]
 async fn handle_answer_submission(
     State(state): State<Arc<Mutex<AppState>>>,
     Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
     Form(form): Form<AnswerSubmission>,
-) -> Result<Html<String>, StatusCode> {
-    let mut state = state.lock().unwrap();
+) -> Result<impl IntoResponse, AppError> {
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
     
     let api_key = std::env::var("OPENAI_API_KEY")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    match state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer).await {
-        Ok(discussion) => {
-            if let Err(e) = state.learning_system.save("learning_system.json") {
-                eprintln!("Error saving state: {}", e);
-            }
+    let discussion = state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
+        .await
+        .map_err(|e| AppError::SystemError(e.to_string()))?;
+
+    if let Err(e) = state.learning_system.save("learning_system.json") {
+        eprintln!("Error saving state: {}", e);
+    }
 
             Ok(Html(format!(r#"
                 <!DOCTYPE html>
@@ -727,40 +751,41 @@ struct AnswerSubmission {
     user_answer: String,
 }
 
+#[axum::debug_handler]
 async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<GoalForm>,
-) -> Result<Html<String>, StatusCode> {
-    let mut state = state.lock().unwrap();
+) -> Result<impl IntoResponse, AppError> {
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
     
     let api_key = std::env::var("OPENAI_API_KEY")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    match state.learning_system.discover_goal(&api_key, &form.topic).await {
-        Ok(goal) => {
-            // Generate initial flashcards
-            if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal.id).await {
-                eprintln!("Error generating cards: {}", e);
-            }
-            
-            Ok(Html(format!(
-                r#"<script>window.location.href = '/study/{}';</script>"#,
-                goal.id
-            )))
-        }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    let goal = state.learning_system.discover_goal(&api_key, &form.topic)
+        .await
+        .map_err(|e| AppError::SystemError(e.to_string()))?;
+
+    // Generate initial flashcards
+    if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal.id).await {
+        eprintln!("Error generating cards: {}", e);
     }
+    
+    Ok(Html(format!(
+        r#"<script>window.location.href = '/study/{}';</script>"#,
+        goal.id
+    )))
 }
 
+#[axum::debug_handler]
 async fn show_study_page(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
-) -> Result<Html<String>, StatusCode> {
-    let state = state.lock().unwrap();
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
     
     let goal = state.learning_system.goals.iter()
         .find(|g| g.id == goal_id)
-        .ok_or(StatusCode::NOT_FOUND)?;
+        .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
     
     let cards = state.learning_system.cards.iter()
         .filter(|c| c.goal_id == goal_id)
