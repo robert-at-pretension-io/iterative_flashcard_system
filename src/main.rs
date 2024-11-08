@@ -520,10 +520,8 @@ impl LearningSystem {
         log!("Parsing evaluation response: {:?}", response);
 
         match serde_json::from_str(&response.choices[0].message.content) {
-            Ok(eval_json) => {
-                log!("Successfully parsed evaluation JSON");
-        
-        Ok(Discussion {
+        Ok(eval_json ) =>
+            Discussion {
             id: Uuid::new_v4(),
             card_id: Uuid::nil(), // This should be set by the caller
             user_response: messages.last().unwrap().content.clone(),
@@ -536,8 +534,12 @@ impl LearningSystem {
                 .map(|point| point.as_str().unwrap_or("").to_string())
                 .collect(),
             timestamp: Utc::now(),
-        })
+        }
+    
+
     }
+}
+    
 
     // Persistence Methods
     pub fn save(&self, file_path: &str) -> Result<(), Box<dyn Error>> {
@@ -552,9 +554,6 @@ impl LearningSystem {
         Ok(system)
     }
 
-    // Helper methods for OpenAI API calls would go here
-    // Including: generate_goal_refinement, evaluate_goal_completeness,
-    // generate_structured_cards, generate_evaluation
 }
 
 async fn show_login() -> Html<String> {
@@ -906,7 +905,7 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let _api_key = match std::env::var("OPENAI_API_KEY") {
+    let api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully retrieved API key");
             key
