@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
 use uuid::Uuid;
+use schemars_uuid::JsonSchema as UuidJsonSchema;
+use chrono_schemars::JsonSchema as ChronoJsonSchema;
 
 // ---- Core Data Structures ----
 
@@ -41,7 +43,7 @@ pub struct Card {
     pub success_rate: f32,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Discussion {
     pub id: Uuid,
     pub card_id: Uuid,
@@ -79,29 +81,6 @@ pub struct LearningSystem {
     pub progress: UserProgress,
 }
 
-// ---- OpenAI API Structures ----
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ChatMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Serialize, Debug)]
-struct ChatCompletionRequest {
-    model: String,
-    messages: Vec<ChatMessage>,
-    response_format: Option<ResponseFormat>,
-    temperature: Option<f32>,
-}
-
-#[derive(Serialize, Debug)]
-struct ResponseFormat {
-    r#type: String,
-    json_schema: JsonSchema,
-}
-
-// ... [Previous imports remain the same]
 
 // ---- OpenAI API Structures ----
 
@@ -116,7 +95,7 @@ pub struct ChatCompletionRequest {
     pub model: String,
     pub messages: Vec<ChatMessage>,
     pub temperature: Option<f32>,
-    pub max_completion_tokens: Option<u32>,
+    pub max_tokens: Option<u32>,
     pub n: Option<u32>,
 }
 
@@ -288,7 +267,7 @@ impl LearningSystem {
             model: model.to_string(),
             messages,
             temperature,
-            max_completion_tokens: max_tokens,
+            max_tokens,
             n: Some(1),
         };
 
