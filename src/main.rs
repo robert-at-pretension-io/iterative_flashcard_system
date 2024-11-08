@@ -5,8 +5,6 @@ use axum::{
     Router,
     http::StatusCode,
 };
-use tokio::net::TcpListener;
-
 #[derive(Debug)]
 enum AppError {
     SystemError(String),
@@ -82,7 +80,7 @@ pub struct Discussion {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TagPerformance {
     pub tag: String,
     pub total_attempts: u32,
@@ -899,7 +897,7 @@ async fn show_study_page(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize system
-    let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    let _api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
     let system = LearningSystem::new();
     
     // Create password hash (change 'your_password_here' to your desired password)
