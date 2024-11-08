@@ -1022,6 +1022,7 @@ async fn show_practice_session(
     )))
 }
 
+#[axum::debug_handler]
 async fn handle_practice_submission(
     State(state): State<Arc<Mutex<AppState>>>,
     Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
@@ -1050,7 +1051,11 @@ async fn handle_practice_submission(
 
     // Update spaced repetition info
     if let Some(card) = state.learning_system.cards.iter_mut().find(|c| c.id == card_id) {
-        card.spaced_rep = state.learning_system.calculate_next_review(card, discussion.correctness_score);
+        let new_spaced_rep = {
+            let card_clone = card.clone();
+            state.learning_system.calculate_next_review(&card_clone, discussion.correctness_score)
+        };
+        card.spaced_rep = new_spaced_rep;
     }
 
     // Save changes
@@ -1609,7 +1614,7 @@ async fn show_study_page(
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Study: {}</title>
+            <title>Study: {0}</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 40px; }}
                 .card {{ 
@@ -1651,11 +1656,11 @@ async fn show_study_page(
         <body>
             <div class="nav-bar">
                 <a href="/dashboard">← Back to Dashboard</a>
-                <a href="/practice/{}" class="practice-btn">Start 30-min Practice Session</a>
+                <a href="/practice/{1}" class="practice-btn">Start 30-min Practice Session</a>
             </div>
             
-            <h1>{}</h1>
-            <p><strong>Goal:</strong> {}</p>
+            <h1>{0}</h1>
+            <p><strong>Goal:</strong> {0}</p>
             
             <div class="cards">
                 {}
