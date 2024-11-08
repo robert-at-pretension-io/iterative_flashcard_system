@@ -965,10 +965,13 @@ Format your entire response as a valid JSON array of these objects."#;
         log!("Cleaned JSON content: {}", content);
 
         let eval_json: serde_json::Value = serde_json::from_str(&content)?;
-        
-        let cards = eval_json.as_array()
-            .ok_or("Invalid JSON response format")?
-            .iter()
+    
+        // Access the "cards" array from the response object
+        let cards_array = eval_json.get("cards")
+            .and_then(|v| v.as_array())
+            .ok_or("Invalid JSON response format")?;
+    
+        let cards = cards_array.iter()
             .map(|card_json| {
                 Card {
                     id: Uuid::new_v4(),
