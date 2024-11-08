@@ -591,7 +591,6 @@ For each card, follow this structure:
 
 Consider:
 - Student's weak areas: {}
-- Recent learning points: {}
 - Current mastery level: {}
 - Curriculum alignment: {}
 
@@ -689,7 +688,7 @@ Focus on guiding improvement rather than just pointing out errors."#
                 ),
             },
             ChatMessage {
-                role: "user".to_string",
+                role: "user".to_string(),
                 content: format!(
                     r#"Question: {}
 Correct Answer: {}
