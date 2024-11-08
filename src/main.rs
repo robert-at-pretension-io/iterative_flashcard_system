@@ -1012,7 +1012,12 @@ Return a JSON object with exactly these properties:
 {
     "score": "number (0.0-1.0) - The correctness score",
     "critique": "string - Detailed critique of the response",
-    "learning_points": "array of strings - Key points for improvement"
+    "learning_points": [
+        {
+            "content": "string - specific point of learning",
+            "mastery": "number (0.0-1.0) - mastery level"
+        }
+    ]
 }
 Format your entire response as a valid JSON object with these exact properties."#;
 
@@ -1036,7 +1041,6 @@ Format your entire response as a valid JSON object with these exact properties."
 
         log!("Parsing evaluation response: {:?}", response);
 
-        // Specify the type as Value for serde_json parsing
         let eval_json: serde_json::Value = serde_json::from_str(&response.choices[0].message.content)
             .map_err(|e| {
                 log!("ERROR: Failed to parse evaluation JSON: {}", e);
@@ -1044,7 +1048,6 @@ Format your entire response as a valid JSON object with these exact properties."
                 e
             })?;
 
-        // Wrap the Discussion in Ok() since we're returning a Result
         Ok(Discussion {
             id: Uuid::new_v4(),
             card_id: Uuid::nil(), // This should be set by the caller
@@ -1055,7 +1058,11 @@ Format your entire response as a valid JSON object with these exact properties."
                 .as_array()
                 .unwrap_or(&Vec::new())
                 .iter()
-                .map(|point| point.as_str().unwrap_or("").to_string())
+                .map(|point| LearningPoint {
+                    content: point["content"].as_str().unwrap_or("").to_string(),
+                    timestamp: Utc::now(),
+                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
+                })
                 .collect(),
             timestamp: Utc::now(),
         })
