@@ -1668,7 +1668,7 @@ async fn handle_goal_refinement(
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    // Get initial messages
+    // Get initial messages and learning system
     let messages = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         let goal = state.learning_system.goals.iter()
@@ -1687,7 +1687,7 @@ async fn handle_goal_refinement(
         ]
     };
 
-    // Generate completion without holding the lock
+    // Generate completion
     let completion_result = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         state.learning_system.generate_chat_completion(
@@ -1696,57 +1696,57 @@ async fn handle_goal_refinement(
             "gpt-4",
             Some(0.7),
             Some(500),
-        )
-    }.await?;
+        ).await?
+    };
 
     // Update state with new criteria
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    
-    if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
-        let new_criteria = completion_result.choices[0].message.content
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .map(|line| line.trim().to_string())
-            .collect::<Vec<_>>();
+    let should_generate_cards = {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        
+        if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
+            let new_criteria = completion_result.choices[0].message.content
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .map(|line| line.trim().to_string())
+                .collect::<Vec<_>>();
 
-        goal.criteria.extend(new_criteria);
-        
-        let should_generate_cards = goal.criteria.len() >= 3;
-        
-        if should_generate_cards {
-            goal.status = GoalStatus::Active;
+            goal.criteria.extend(new_criteria);
             
-            // Drop the lock before the async operation
-            drop(state);
-            
-            // Generate cards for the refined goal
-            let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-            if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal_id).await {
-                log!("ERROR: Failed to generate cards: {}", e);
+            if goal.criteria.len() >= 3 {
+                goal.status = GoalStatus::Active;
+                true
+            } else {
+                if let Err(e) = state.learning_system.save("learning_system.json") {
+                    log!("ERROR: Failed to save refined goal: {}", e);
+                }
+                false
             }
-            
-            // Save changes
-            if let Err(e) = state.learning_system.save("learning_system.json") {
-                log!("ERROR: Failed to save refined goal: {}", e);
-            }
-            
-            Ok(Html(format!(
-                r#"<script>window.location.href = '/study/{}';</script>"#,
-                goal_id
-            )))
         } else {
-            // Save changes
-            if let Err(e) = state.learning_system.save("learning_system.json") {
-                log!("ERROR: Failed to save refined goal: {}", e);
-            }
-            
-            Ok(Html(format!(
-                r#"<script>window.location.href = '/goals/{}/refine';</script>"#,
-                goal_id
-            )))
+            return Err(AppError::NotFound("Goal not found".to_string()));
         }
+    };
+
+    if should_generate_cards {
+        // Generate cards for the refined goal
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal_id).await {
+            log!("ERROR: Failed to generate cards: {}", e);
+        }
+        
+        // Save changes
+        if let Err(e) = state.learning_system.save("learning_system.json") {
+            log!("ERROR: Failed to save refined goal: {}", e);
+        }
+        
+        Ok(Html(format!(
+            r#"<script>window.location.href = '/study/{}';</script>"#,
+            goal_id
+        )))
     } else {
-        Err(AppError::NotFound("Goal not found".to_string()))
+        Ok(Html(format!(
+            r#"<script>window.location.href = '/goals/{}/refine';</script>"#,
+            goal_id
+        )))
     }
 }
 
