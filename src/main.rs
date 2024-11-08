@@ -670,14 +670,13 @@ Return exactly 5 cards in this JSON format:
     pub async fn evaluate_response(&mut self, api_key: &str, card_id: Uuid, user_response: &str) -> Result<Discussion, Box<dyn Error>> {
         log!("Starting response evaluation for card {}", card_id);
         
-        let card = match self.cards.iter()
-            .find(|c| c.id == card_id) {
-                Some(c) => c,
-                None => {
-                    log!("ERROR: Card {} not found", card_id);
-                    return Err("Card not found".into());
-                }
-            };
+        let card = match self.cards.iter().find(|c| c.id == card_id) {
+            Some(c) => c,
+            None => {
+                log!("ERROR: Card {} not found", card_id);
+                return Err("Card not found".into());
+            }
+        };
 
         let messages = vec![
             ChatMessage {
@@ -731,7 +730,6 @@ Previous Performance: {} reviews, {}% success rate"#,
             },
         ];
 
-        log!("Sending evaluation request to OpenAI API");
         let response = self.generate_chat_completion(
             api_key,
             messages,
@@ -742,22 +740,45 @@ Previous Performance: {} reviews, {}% success rate"#,
 
         let eval: serde_json::Value = serde_json::from_str(&response.choices[0].message.content)?;
         
+        // Extract critique components
+        let critique = {
+            let strengths = eval["critique"]["strengths"].as_array()
+                .map(|arr| arr.iter()
+                    .filter_map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n"))
+                .unwrap_or_default();
+            
+            let improvements = eval["critique"]["areas_for_improvement"].as_array()
+                .map(|arr| arr.iter()
+                    .filter_map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n"))
+                .unwrap_or_default();
+            
+            format!("Strengths:\n{}\n\nAreas for Improvement:\n{}", strengths, improvements)
+        };
+
+        let learning_points = eval["learning_points"].as_array()
+            .map(|points| points.iter()
+                .map(|point| LearningPoint {
+                    content: format!("{} (Suggestion: {})",
+                        point["content"].as_str().unwrap_or(""),
+                        point["improvement_suggestion"].as_str().unwrap_or("")
+                    ),
+                    timestamp: Utc::now(),
+                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
+                })
+                .collect())
+            .unwrap_or_default();
+
         let discussion = Discussion {
             id: Uuid::new_v4(),
             card_id,
             user_response: user_response.to_string(),
             correctness_score: eval["score"].as_f64().unwrap_or(0.0) as f32,
-            critique: eval["critique"].as_str().unwrap_or("").to_string(),
-            learning_points: eval["learning_points"]
-                .as_array()
-                .unwrap_or(&Vec::new())
-                .iter()
-                .map(|point| LearningPoint {
-                    content: point.as_str().unwrap_or("").to_string(),
-                    timestamp: Utc::now(),
-                    mastery_level: 0.0,  // Default mastery level
-                })
-                .collect(),
+            critique,
+            learning_points,
             timestamp: Utc::now(),
         };
 
@@ -1527,6 +1548,7 @@ async fn handle_answer_submission(
                             padding: 20px; 
                             border-radius: 8px; 
                             margin: 20px 0;
+                            white-space: pre-line;
                         }}
                         .learning-points {{ margin: 20px 0; }}
                         .learning-point {{ 
@@ -1556,13 +1578,15 @@ async fn handle_answer_submission(
                         </div>
 
                         <div class="critique">
-                            <h3>Critique:</h3>
-                            <p>{}</p>
+                            <h3>Feedback:</h3>
+                            {}
                         </div>
 
                         <div class="learning-points">
                             <h3>Key Learning Points:</h3>
-                            {}
+                            <ul>
+                                {}
+                            </ul>
                         </div>
 
                         <div class="nav-buttons">
