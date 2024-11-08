@@ -774,7 +774,7 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let _api_key = match std::env::var("OPENAI_API_KEY") {
+    let api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully retrieved API key");
             key
