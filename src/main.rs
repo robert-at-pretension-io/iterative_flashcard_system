@@ -1,9 +1,20 @@
+use axum::{
+    routing::{get, post},
+    Router, 
+    response::Html,
+    extract::{State, Form},
+    http::StatusCode,
+};
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::time::{SystemTime, Duration};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
 use uuid::Uuid;
+use bcrypt::{hash, verify, DEFAULT_COST};
 
 // ---- Core Data Structures ----
 
@@ -76,6 +87,23 @@ pub struct LearningSystem {
     pub cards: Vec<Card>,
     pub discussions: Vec<Discussion>,
     pub progress: UserProgress,
+}
+
+#[derive(Debug)]
+struct LoginAttempt {
+    attempts: u32,
+    last_attempt: SystemTime,
+}
+
+#[derive(Deserialize)]
+struct LoginForm {
+    password: String,
+}
+
+struct AppState {
+    learning_system: LearningSystem,
+    login_attempts: HashMap<String, LoginAttempt>,
+    password_hash: String,
 }
 
 
@@ -445,29 +473,145 @@ impl LearningSystem {
     // generate_structured_cards, generate_evaluation
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
-    let mut system = LearningSystem::new();
+async fn show_login() -> Html<String> {
+    Html(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Learning System Login</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                .login-form { max-width: 300px; margin: 0 auto; }
+                input[type="password"] { width: 100%; padding: 8px; margin: 10px 0; }
+                button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; }
+            </style>
+        </head>
+        <body>
+            <div class="login-form">
+                <h2>Login</h2>
+                <form action="/login" method="POST">
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+            </div>
+        </body>
+        </html>
+    "#.to_string())
+}
 
-    // Example workflow
-    let goal = system.discover_goal(&api_key, "Learn Rust ownership system").await?;
-    println!("Goal established: {:?}", goal);
-
-    let cards = system.generate_cards_for_goal(&api_key, goal.id).await?;
-    println!("Generated {} cards", cards.len());
-
-    // Simulate user interaction
-    for card in &cards {
-        println!("\nQuestion: {}", card.question);
-        // In a real application, you would get user input here
-        let user_response = "The ownership system ensures memory safety at compile time";
-        let discussion = system.evaluate_response(&api_key, card.id, user_response).await?;
-        println!("Feedback: {}", discussion.critique);
+async fn handle_login(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Form(form): Form<LoginForm>,
+) -> Result<Html<String>, StatusCode> {
+    let mut state = state.lock().unwrap();
+    let ip = "127.0.0.1".to_string(); // In production, extract real IP
+    
+    // Check if IP is blocked
+    if let Some(attempt) = state.login_attempts.get(&ip) {
+        if attempt.attempts >= 3 {
+            let elapsed = SystemTime::now()
+                .duration_since(attempt.last_attempt)
+                .unwrap_or(Duration::from_secs(0));
+            
+            if elapsed < Duration::from_secs(1800) { // 30 minutes
+                return Ok(Html(
+                    "Too many failed attempts. Please try again later.".to_string()
+                ));
+            }
+        }
     }
 
-    system.save("learning_progress.json")?;
-    println!("Progress saved!");
+    // Verify password
+    if verify(&form.password, &state.password_hash).unwrap_or(false) {
+        state.login_attempts.remove(&ip);
+        Ok(Html(r#"<script>window.location.href = '/dashboard';</script>"#.to_string()))
+    } else {
+        // Record failed attempt
+        let attempt = state.login_attempts
+            .entry(ip)
+            .or_insert(LoginAttempt { attempts: 0, last_attempt: SystemTime::now() });
+        
+        attempt.attempts += 1;
+        attempt.last_attempt = SystemTime::now();
+
+        Ok(Html(
+            "Invalid password. Please try again.".to_string()
+        ))
+    }
+}
+
+async fn show_dashboard(
+    State(state): State<Arc<Mutex<AppState>>>,
+) -> Html<String> {
+    let state = state.lock().unwrap();
+    let progress = &state.learning_system.progress;
+    
+    Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Learning Dashboard</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .stats {{ margin: 20px 0; }}
+                .card {{ background: #f5f5f5; padding: 20px; margin: 10px 0; }}
+            </style>
+        </head>
+        <body>
+            <h1>Learning Dashboard</h1>
+            <div class="stats">
+                <h2>Progress Statistics</h2>
+                <p>Total Cards Reviewed: {}</p>
+                <p>Total Study Sessions: {}</p>
+            </div>
+            <div class="goals">
+                <h2>Active Goals</h2>
+                {}
+            </div>
+        </body>
+        </html>
+    "#, 
+    progress.total_cards_reviewed,
+    progress.total_study_sessions,
+    state.learning_system.goals
+        .iter()
+        .map(|g| format!(
+            r#"<div class="card"><h3>{}</h3><p>Status: {:?}</p></div>"#,
+            g.description,
+            g.status
+        ))
+        .collect::<Vec<_>>()
+        .join("\n")
+    ))
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    // Initialize system
+    let api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    let system = LearningSystem::new();
+    
+    // Create password hash (change 'your_password_here' to your desired password)
+    let password_hash = hash("your_password_here", DEFAULT_COST)?;
+
+    // Create shared state
+    let state = Arc::new(Mutex::new(AppState {
+        learning_system: system,
+        login_attempts: HashMap::new(),
+        password_hash,
+    }));
+
+    // Build router
+    let app = Router::new()
+        .route("/", get(show_login))
+        .route("/login", post(handle_login))
+        .route("/dashboard", get(show_dashboard))
+        .with_state(state);
+
+    println!("Server running on http://localhost:3000");
+    axum::Server::bind(&"0.0.0.0:3000".parse()?)
+        .serve(app.into_make_service())
+        .await?;
 
     Ok(())
 }
