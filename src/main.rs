@@ -1007,7 +1007,7 @@ Format your response as simple text with one criterion per line."#
                 Some(1000),
             ).await?;
 
-            // Clean up the response content by removing markdown code block markers
+            // Clean up the response content
             let content = response.choices[0].message.content.replace("```json", "")
                 .replace("```", "")
                 .trim()
@@ -1016,18 +1016,16 @@ Format your response as simple text with one criterion per line."#
             log!("Cleaned JSON content: {}", content);
 
             // Try different JSON parsing approaches
-            let parse_result = match serde_json::from_str::<serde_json::Value>(&content) {
+            let parse_result: Result<Vec<serde_json::Value>, String> = match serde_json::from_str::<serde_json::Value>(&content) {
                 Ok(json) => {
-                    // First try parsing as an object with "cards" array
                     if let Some(cards) = json.get("cards").and_then(|c| c.as_array()) {
                         Ok(cards.to_owned())
                     }
-                    // Then try parsing as a direct array
                     else if json.is_array() {
                         Ok(json.as_array().unwrap().to_owned())
                     }
                     else {
-                        Err("Invalid JSON structure".into())
+                        Err("Invalid JSON structure".to_string())
                     }
                 },
                 Err(e) => Err(format!("JSON parsing error: {}", e))
@@ -1036,36 +1034,50 @@ Format your response as simple text with one criterion per line."#
             match parse_result {
                 Ok(cards_array) => {
                     // Convert the parsed JSON into Card structs
-                    let cards: Result<Vec<Card>, _> = cards_array.iter()
+                    let cards: Result<Vec<Card>, String> = cards_array.iter()
                         .map(|card_json| {
+                            let goal_id = self.goals.last()
+                                .ok_or_else(|| "No active goal".to_string())?
+                                .id;
+
+                            let question = card_json.get("question")
+                                .and_then(|q| q.as_str())
+                                .ok_or_else(|| "Missing question".to_string())?
+                                .to_string();
+
+                            let answer = card_json.get("answer")
+                                .and_then(|a| a.as_str())
+                                .ok_or_else(|| "Missing answer".to_string())?
+                                .to_string();
+
+                            let context = card_json.get("context")
+                                .and_then(|c| c.as_str())
+                                .ok_or_else(|| "Missing context".to_string())?
+                                .to_string();
+
+                            let difficulty = card_json.get("difficulty")
+                                .and_then(|d| d.as_u64())
+                                .map(|d| d as u8)
+                                .unwrap_or(3);
+
+                            let tags = card_json.get("tags")
+                                .and_then(|t| t.as_array())
+                                .map(|tags| tags.iter()
+                                    .filter_map(|t| t.as_str())
+                                    .map(String::from)
+                                    .collect())
+                                .unwrap_or_else(|| self.goals.last()
+                                    .map(|g| g.tags.clone())
+                                    .unwrap_or_default());
+
                             Ok(Card {
                                 id: Uuid::new_v4(),
-                                goal_id: self.goals.last().ok_or("No active goal")?.id,
-                                question: card_json.get("question")
-                                    .and_then(|q| q.as_str())
-                                    .ok_or("Missing question")?
-                                    .to_string(),
-                                answer: card_json.get("answer")
-                                    .and_then(|a| a.as_str())
-                                    .ok_or("Missing answer")?
-                                    .to_string(),
-                                context: card_json.get("context")
-                                    .and_then(|c| c.as_str())
-                                    .ok_or("Missing context")?
-                                    .to_string(),
-                                difficulty: card_json.get("difficulty")
-                                    .and_then(|d| d.as_u64())
-                                    .map(|d| d as u8)
-                                    .unwrap_or(3),
-                                tags: card_json.get("tags")
-                                    .and_then(|t| t.as_array())
-                                    .map(|tags| tags.iter()
-                                        .filter_map(|t| t.as_str())
-                                        .map(String::from)
-                                        .collect())
-                                    .unwrap_or_else(|| self.goals.last()
-                                        .map(|g| g.tags.clone())
-                                        .unwrap_or_default()),
+                                goal_id,
+                                question,
+                                answer,
+                                context,
+                                difficulty,
+                                tags,
                                 created_at: Utc::now(),
                                 review_count: 0,
                                 success_rate: 0.0,
@@ -1094,7 +1106,6 @@ Format your response as simple text with one criterion per line."#
                 Err(e) => {
                     log!("ERROR: Failed to parse JSON on attempt {}: {}", attempt + 1, e);
                     
-                    // On failure, try to get better formatted JSON with an explicit retry prompt
                     if attempt < max_retries - 1 {
                         let retry_messages = vec![
                             ChatMessage {
