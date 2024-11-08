@@ -1,5 +1,5 @@
 use axum::{
-    response::{Response, IntoResponse, Html},
+    response::{IntoResponse, Html},
     routing::{get, post},
     extract::{State, Form, Path},
     Router,
@@ -568,17 +568,24 @@ async fn handle_answer_submission(
     Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
     Form(form): Form<AnswerSubmission>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    
+    // Get API key outside the lock
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    let discussion = state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
-        .await
-        .map_err(|e| AppError::SystemError(e.to_string()))?;
+    // Evaluate response while holding lock briefly
+    let discussion = {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
+            .await
+            .map_err(|e| AppError::SystemError(e.to_string()))?
+    };
 
-    if let Err(e) = state.learning_system.save("learning_system.json") {
-        eprintln!("Error saving state: {}", e);
+    // Save state with a new lock
+    {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        if let Err(e) = state.learning_system.save("learning_system.json") {
+            eprintln!("Error saving state: {}", e);
+        }
     }
 
             Ok(Html(format!(r#"
@@ -754,18 +761,23 @@ async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<GoalForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    let goal = state.learning_system.discover_goal(&api_key, &form.topic)
-        .await
-        .map_err(|e| AppError::SystemError(e.to_string()))?;
+    // Discover goal while holding lock briefly
+    let goal = {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system.discover_goal(&api_key, &form.topic)
+            .await
+            .map_err(|e| AppError::SystemError(e.to_string()))?
+    };
 
-    // Generate initial flashcards
-    if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal.id).await {
-        eprintln!("Error generating cards: {}", e);
+    // Generate cards with a new lock
+    {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal.id).await {
+            eprintln!("Error generating cards: {}", e);
+        }
     }
     
     Ok(Html(format!(
