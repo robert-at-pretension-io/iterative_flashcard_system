@@ -1496,6 +1496,24 @@ async fn show_dashboard(
                     border: 1px solid #dee2e6;
                 }}
                 .card h3 {{ margin-top: 0; }}
+                .action-buttons {{
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 15px;
+                }}
+                .action-button {{
+                    flex: 1;
+                    text-align: center;
+                    padding: 8px 16px;
+                    background: #007bff;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    font-size: 0.9em;
+                }}
+                .action-button:hover {{
+                    background: #0056b3;
+                }}
                 .status-badge {{
                     display: inline-block;
                     padding: 4px 8px;
