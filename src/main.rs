@@ -2,7 +2,7 @@ use axum::{
     routing::{get, post},
     Router, 
     response::Html,
-    extract::{State, Form},
+    extract::{State, Form, Path},
     http::StatusCode,
 };
 use std::sync::{Arc, Mutex};
@@ -568,6 +568,12 @@ async fn show_dashboard(
                 <h2>Active Goals</h2>
                 {}
             </div>
+            <div class="actions" style="margin-top: 20px;">
+                <h2>Actions</h2>
+                <a href="/goals/new" style="display: inline-block; padding: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+                    Create New Learning Goal
+                </a>
+            </div>
         </body>
         </html>
     "#, 
@@ -583,6 +589,176 @@ async fn show_dashboard(
         .collect::<Vec<_>>()
         .join("\n")
     ))
+}
+
+async fn show_goal_form() -> Html<String> {
+    Html(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Create New Learning Goal</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                .form-container { max-width: 600px; margin: 0 auto; }
+                textarea, input { width: 100%; padding: 8px; margin: 10px 0; }
+                button { padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+            </style>
+        </head>
+        <body>
+            <div class="form-container">
+                <h2>Create New Learning Goal</h2>
+                <form action="/goals/new" method="POST">
+                    <div>
+                        <label>What do you want to learn about?</label>
+                        <textarea name="topic" rows="3" required 
+                            placeholder="Describe what you want to learn. Be as specific as possible."></textarea>
+                    </div>
+                    <button type="submit">Generate Learning Plan</button>
+                </form>
+            </div>
+        </body>
+        </html>
+    "#.to_string())
+}
+
+#[derive(Deserialize)]
+struct GoalForm {
+    topic: String,
+}
+
+async fn handle_goal_creation(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Form(form): Form<GoalForm>,
+) -> Result<Html<String>, StatusCode> {
+    let mut state = state.lock().unwrap();
+    
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    match state.learning_system.discover_goal(&api_key, &form.topic).await {
+        Ok(goal) => {
+            // Generate initial flashcards
+            if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal.id).await {
+                eprintln!("Error generating cards: {}", e);
+            }
+            
+            Ok(Html(format!(
+                r#"<script>window.location.href = '/study/{}';</script>"#,
+                goal.id
+            )))
+        }
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+async fn show_study_page(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+) -> Result<Html<String>, StatusCode> {
+    let state = state.lock().unwrap();
+    
+    let goal = state.learning_system.goals.iter()
+        .find(|g| g.id == goal_id)
+        .ok_or(StatusCode::NOT_FOUND)?;
+    
+    let cards = state.learning_system.cards.iter()
+        .filter(|c| c.goal_id == goal_id)
+        .collect::<Vec<_>>();
+
+    Ok(Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Study: {}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .card {{ 
+                    background: #f5f5f5; 
+                    padding: 20px; 
+                    margin: 20px 0; 
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .answer {{ display: none; }}
+                .show-answer {{ 
+                    background: #007bff; 
+                    color: white; 
+                    border: none;
+                    padding: 10px;
+                    margin: 10px 0;
+                    cursor: pointer;
+                    border-radius: 4px;
+                }}
+                .difficulty {{
+                    color: #666;
+                    font-size: 0.9em;
+                    margin-top: 10px;
+                }}
+                .nav-bar {{
+                    margin-bottom: 20px;
+                }}
+                .nav-bar a {{
+                    color: #007bff;
+                    text-decoration: none;
+                }}
+            </style>
+            <script>
+                function toggleAnswer(cardId) {{
+                    const answer = document.getElementById(`answer-${{cardId}}`);
+                    const btn = document.getElementById(`btn-${{cardId}}`);
+                    if (answer.style.display === 'none') {{
+                        answer.style.display = 'block';
+                        btn.textContent = 'Hide Answer';
+                    }} else {{
+                        answer.style.display = 'none';
+                        btn.textContent = 'Show Answer';
+                    }}
+                }}
+            </script>
+        </head>
+        <body>
+            <div class="nav-bar">
+                <a href="/dashboard">← Back to Dashboard</a>
+            </div>
+            
+            <h1>{}</h1>
+            <p><strong>Goal:</strong> {}</p>
+            
+            <div class="cards">
+                {}
+            </div>
+        </body>
+        </html>
+    "#,
+        goal.description,
+        goal.description,
+        goal.description,
+        cards.iter().map(|card| format!(r#"
+            <div class="card">
+                <h3>{}</h3>
+                <p><strong>Context:</strong> {}</p>
+                <button id="btn-{}" class="show-answer" onclick="toggleAnswer('{}')">
+                    Show Answer
+                </button>
+                <div id="answer-{}" class="answer">
+                    <p><strong>Answer:</strong> {}</p>
+                </div>
+                <div class="difficulty">
+                    Difficulty: {}/5 | Reviews: {} | Success Rate: {:.1}%
+                </div>
+            </div>
+        "#,
+            card.question,
+            card.context,
+            card.id,
+            card.id,
+            card.id,
+            card.answer,
+            card.difficulty,
+            card.review_count,
+            card.success_rate * 100.0
+        )).collect::<Vec<_>>().join("\n")
+    )))
 }
 
 #[tokio::main]
@@ -606,6 +782,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/", get(show_login))
         .route("/login", post(handle_login))
         .route("/dashboard", get(show_dashboard))
+        .route("/goals/new", get(show_goal_form).post(handle_goal_creation))
+        .route("/study/:goal_id", get(show_study_page))
         .with_state(state);
 
     println!("Server running on http://localhost:3000");
