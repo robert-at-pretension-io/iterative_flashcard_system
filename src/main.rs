@@ -1877,11 +1877,19 @@ async fn handle_goal_refinement(
     let messages = vec![
         ChatMessage {
             role: "system".to_string(),
-            content: "You are helping to refine a learning goal. Based on the user's response, suggest specific, measurable criteria for success.".to_string(),
+            content: format!(
+                r#"You are helping to refine a learning goal.
+Based on the user's response, suggest 2-3 specific, measurable criteria for success.
+Current goal description: {}
+Current criteria: {}
+Please return ONLY the new criteria, one per line."#,
+                goal.description,
+                goal.criteria.join("\n")
+            ),
         },
         ChatMessage {
             role: "user".to_string(),
-            content: format!("Goal: {}\nUser's response: {}", goal.description, form.response),
+            content: form.response.clone(),
         },
     ];
 
