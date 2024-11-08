@@ -789,8 +789,47 @@ impl LearningSystem {
         messages: &[ChatMessage],
     ) -> Result<ChatMessage, Box<dyn Error>> {
         let prompt = format!(
-            "Based on the conversation so far, ask ONE specific question to help refine and clarify the learning goal. \
-            Focus on making the goal more specific, measurable, and actionable.");
+            r#"You are an expert learning advisor helping to define specific, measurable learning goals.
+
+Current Goal: {}
+Current Progress: {}
+Learning Context: {}
+
+Help refine this goal by:
+1. Making it more specific and measurable
+2. Breaking it into clear success criteria
+3. Identifying prerequisite knowledge
+4. Suggesting practical applications
+
+Return feedback in this JSON format:
+{{
+    "refined_goal": "string - clearer version of the goal",
+    "success_criteria": [
+        {{
+            "criterion": "string - specific, measurable outcome",
+            "measurement": "string - how to assess achievement",
+            "difficulty": number (1-5)
+        }}
+    ],
+    "prerequisites": ["string"],
+    "suggested_milestones": ["string"],
+    "practical_applications": ["string"]
+}}
+
+Focus on making the goal SMART:
+- Specific: Clear and unambiguous
+- Measurable: Quantifiable progress/success
+- Achievable: Realistic given current level
+- Relevant: Connected to broader learning objectives
+- Time-bound: Can be achieved in reasonable timeframe"#,
+            goal.description,
+            goal.criteria.join("\n"),
+            // Add relevant context from curriculum if available
+            curriculum_context.iter()
+                .map(|m| format!("{}: {}", m.title, m.description))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
 
         let mut refinement_messages = messages.to_vec();
         refinement_messages.push(ChatMessage {
