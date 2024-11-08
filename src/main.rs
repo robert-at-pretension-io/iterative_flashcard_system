@@ -1621,7 +1621,7 @@ async fn show_study_page(
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Study: {}</title>
+            <title>Study</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 40px; }}
                 .card {{ 
