@@ -320,35 +320,54 @@ impl LearningSystem {
         session_cards
     }
 
-    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
-        let mut spaced_rep = card.spaced_rep.clone();
-        
-        // SuperMemo 2 algorithm
-        if performance >= 0.8 {
-            spaced_rep.consecutive_correct += 1;
-            if spaced_rep.consecutive_correct == 1 {
-                spaced_rep.interval = 1;
-            } else if spaced_rep.consecutive_correct == 2 {
-                spaced_rep.interval = 6;
-            } else {
-                spaced_rep.interval = ((spaced_rep.interval as f32) * spaced_rep.ease_factor) as i32;
+    fn generate_knowledge_graph(&self, goal_id: Uuid) -> KnowledgeGraphData {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        let mut processed_concepts = std::collections::HashSet::new();
+
+        // Add nodes for each card
+        for card in &self.cards {
+            if card.goal_id == goal_id {
+                for tag in &card.tags {
+                    if processed_concepts.insert(tag) {
+                        // Calculate mastery level for this concept
+                        let related_cards: Vec<&Card> = self.cards.iter()
+                            .filter(|c| c.tags.contains(tag))
+                            .collect();
+                        
+                        let mastery = related_cards.iter()
+                            .map(|c| c.success_rate)
+                            .sum::<f32>() / related_cards.len() as f32;
+
+                        nodes.push(GraphNode {
+                            id: tag.clone(),
+                            label: tag.clone(),
+                            level: card.difficulty,
+                            mastery,
+                        });
+                    }
+                }
+
+                // Add edges for prerequisites
+                for prereq_id in &card.prerequisites {
+                    if let Some(prereq_card) = self.cards.iter().find(|c| c.id == *prereq_id) {
+                        for prereq_tag in &prereq_card.tags {
+                            for tag in &card.tags {
+                                edges.push(GraphEdge {
+                                    source: prereq_tag.clone(),
+                                    target: tag.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
             }
-            spaced_rep.ease_factor = spaced_rep.ease_factor + 0.1;
-        } else {
-            spaced_rep.consecutive_correct = 0;
-            spaced_rep.interval = 1;
-            spaced_rep.ease_factor = spaced_rep.ease_factor - 0.2;
         }
 
-        // Ensure bounds
-        spaced_rep.ease_factor = spaced_rep.ease_factor.max(1.3);
-        spaced_rep.interval = spaced_rep.interval.max(1);
-        
-        spaced_rep.last_reviewed = Utc::now();
-        spaced_rep.next_review = Utc::now() + chrono::Duration::days(spaced_rep.interval as i64);
-        
-        spaced_rep
+        KnowledgeGraphData { nodes, edges }
     }
+
+    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
 
     pub fn get_due_cards(&self) -> Vec<&Card> {
         self.cards.iter()
