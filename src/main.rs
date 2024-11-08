@@ -923,7 +923,7 @@ async fn show_study_page(
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() {
     log!("Starting Iterative Flashcard System");
     
     // Initialize system
@@ -934,7 +934,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         },
         Err(e) => {
             log!("ERROR: Failed to load API key: {}", e);
-            return Err(Box::new(e));
+            eprintln!("ERROR: OpenAI API key not found in environment");
+            std::process::exit(1);
         }
     };
     
@@ -942,16 +943,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let system = LearningSystem::new();
     
     log!("Creating password hash");
-    let password_hash = hash("your_password_here", DEFAULT_COST)?;
+    let password_hash = match hash("your_password_here", DEFAULT_COST) {
+        Ok(hash) => hash,
+        Err(e) => {
+            eprintln!("Failed to create password hash: {}", e);
+            std::process::exit(1);
+        }
+    };
 
-    // Create shared state
+    log!("Creating shared state");
     let state = Arc::new(Mutex::new(AppState {
         learning_system: system,
         login_attempts: HashMap::new(),
         password_hash,
     }));
 
-    // Build router
+    log!("Building router");
     let app = Router::new()
         .route("/", get(show_login))
         .route("/login", post(handle_login))
@@ -961,9 +968,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .with_state(state);
 
-    println!("Server running on http://localhost:3000");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    axum::serve(listener, app.into_make_service()).await?;
+    log!("Starting server on http://localhost:3000");
+    let listener = match tokio::net::TcpListener::bind("0.0.0.0:3000").await {
+        Ok(listener) => {
+            log!("Successfully bound to port 3000");
+            listener
+        },
+        Err(e) => {
+            eprintln!("Failed to bind to port 3000: {}", e);
+            std::process::exit(1);
+        }
+    };
 
-    Ok(())
+    log!("Server is ready to accept connections");
+    if let Err(e) = axum::serve(listener, app.into_make_service()).await {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    }
 }
