@@ -1210,21 +1210,22 @@ async fn show_practice_session(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Generate practice cards
-    let practice_cards = {
-        let mut state_guard = state.lock()
-            .map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        
-        state_guard.learning_system.generate_practice_session(goal_id, 30).await
-            .map_err(|e| AppError::SystemError(e.to_string()))?
+    // Clone the learning system
+    let mut learning_system = {
+        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system.clone()
     };
     
-    // Save state after generating cards
+    // Generate practice cards using cloned system
+    let practice_cards = learning_system.generate_practice_session(goal_id, 30).await
+        .map_err(|e| AppError::SystemError(e.to_string()))?;
+    
+    // Update the original state
     {
-        let mut state_guard = state.lock()
-            .map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        if let Err(e) = state_guard.learning_system.save("learning_system.json") {
-            log!("Error saving learning system after generating new cards: {}", e);
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system = learning_system;
+        if let Err(e) = state.learning_system.save("learning_system.json") {
+            log!("Error saving learning system: {}", e);
         }
     }
     
