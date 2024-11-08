@@ -1668,12 +1668,15 @@ async fn handle_goal_refinement(
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    // Get initial messages and learning system
+    // Get initial messages by cloning necessary data
     let messages = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         let goal = state.learning_system.goals.iter()
             .find(|g| g.id == goal_id)
             .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
+        
+        // Clone the data we need
+        let goal_description = goal.description.clone();
         
         vec![
             ChatMessage {
@@ -1682,15 +1685,21 @@ async fn handle_goal_refinement(
             },
             ChatMessage {
                 role: "user".to_string(),
-                content: format!("Goal: {}\nUser's response: {}", goal.description, form.response),
+                content: format!("Goal: {}\nUser's response: {}", goal_description, form.response),
             },
         ]
-    };
+    }; // MutexGuard is dropped here
 
-    // Generate completion
+    // Generate completion using cloned data
     let completion_result = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        state.learning_system.generate_chat_completion(
+        let learning_system = &state.learning_system;
+        
+        // Clone the learning system to avoid holding the lock during the await
+        let system_clone = learning_system.clone();
+        drop(state); // Explicitly drop the MutexGuard
+
+        system_clone.generate_chat_completion(
             &api_key,
             messages,
             "gpt-4",
@@ -1712,15 +1721,16 @@ async fn handle_goal_refinement(
 
             goal.criteria.extend(new_criteria);
             
-            if goal.criteria.len() >= 3 {
+            let should_generate = goal.criteria.len() >= 3;
+            if should_generate {
                 goal.status = GoalStatus::Active;
-                true
-            } else {
-                if let Err(e) = state.learning_system.save("learning_system.json") {
-                    log!("ERROR: Failed to save refined goal: {}", e);
-                }
-                false
             }
+            
+            if let Err(e) = state.learning_system.save("learning_system.json") {
+                log!("ERROR: Failed to save refined goal: {}", e);
+            }
+            
+            should_generate
         } else {
             return Err(AppError::NotFound("Goal not found".to_string()));
         }
@@ -1728,14 +1738,22 @@ async fn handle_goal_refinement(
 
     if should_generate_cards {
         // Generate cards for the refined goal
-        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal_id).await {
+        let result = {
+            let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+            let system_clone = state.learning_system.clone();
+            drop(state);
+            
+            system_clone.generate_cards_for_goal(&api_key, goal_id).await
+        };
+
+        if let Err(e) = result {
             log!("ERROR: Failed to generate cards: {}", e);
         }
-        
-        // Save changes
+
+        // Save the final state
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         if let Err(e) = state.learning_system.save("learning_system.json") {
-            log!("ERROR: Failed to save refined goal: {}", e);
+            log!("ERROR: Failed to save learning system: {}", e);
         }
         
         Ok(Html(format!(
