@@ -1570,13 +1570,21 @@ async fn handle_goal_creation(
 
     // Generate cards using the cloned system
     if let Err(e) = learning_system.generate_cards_for_goal(&api_key, goal.id).await {
-        eprintln!("Error generating cards: {}", e);
+        log!("ERROR: Failed to generate cards: {}", e);
+        return Err(AppError::SystemError(format!("Failed to generate cards: {}", e)));
     }
 
-    // Update the original state with the modified system
+    // Update the original state with the modified system and save to disk
     {
         let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         state.learning_system = learning_system;
+        
+        // Save the updated state to disk
+        if let Err(e) = state.learning_system.save("learning_system.json") {
+            log!("ERROR: Failed to save learning system: {}", e);
+            return Err(AppError::SystemError("Failed to save changes".to_string()));
+        }
+        log!("Successfully saved learning system with new goal and cards");
     }
     
     Ok(Html(format!(
