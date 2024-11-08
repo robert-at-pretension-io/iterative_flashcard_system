@@ -726,8 +726,14 @@ Format your entire response as a valid JSON array of these objects."#;
                 created_at: Utc::now(),
                 review_count: 0,
                 success_rate: 0.0,
-                spaced_rep: todo!(),
-                prerequisites: todo!(),
+                spaced_rep: SpacedRepetitionInfo {
+                    last_reviewed: Utc::now(),
+                    next_review: Utc::now(),
+                    interval: 1,
+                    ease_factor: 2.5,
+                    consecutive_correct: 0,
+                },
+                prerequisites: Vec::new(),
             }
         }).collect();
 
