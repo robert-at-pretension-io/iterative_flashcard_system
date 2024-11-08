@@ -59,7 +59,7 @@ impl From<Box<dyn std::error::Error>> for AppError {
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
-use chrono::{Date, DateTime, Utc};
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -1659,6 +1659,7 @@ async fn show_goal_refinement(
     )))
 }
 
+#[axum::debug_handler]
 async fn handle_goal_refinement(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
@@ -1667,12 +1668,14 @@ async fn handle_goal_refinement(
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    // Update goal with refined information
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    
-    if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
-        // Use the response to generate refined criteria
-        let messages = vec![
+    // Clone the necessary data first
+    let (goal_description, messages) = {
+        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        let goal = state.learning_system.goals.iter()
+            .find(|g| g.id == goal_id)
+            .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
+        
+        (goal.description.clone(), vec![
             ChatMessage {
                 role: "system".to_string(),
                 content: "You are helping to refine a learning goal. Based on the user's response, suggest specific, measurable criteria for success.".to_string(),
@@ -1681,17 +1684,25 @@ async fn handle_goal_refinement(
                 role: "user".to_string(),
                 content: format!("Goal: {}\nUser's response: {}", goal.description, form.response),
             },
-        ];
+        ])
+    };
 
-        let response = state.learning_system.generate_chat_completion(
+    // Get a new lock for the chat completion
+    let response = {
+        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system.generate_chat_completion(
             &api_key,
             messages,
             "gpt-4",
             Some(0.7),
             Some(500),
-        ).await?;
+        ).await?
+    };
 
-        // Parse and update criteria
+    // Parse criteria and update goal with a new lock
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
         let new_criteria = response.choices[0].message.content
             .lines()
             .filter(|line| !line.trim().is_empty())
@@ -1700,7 +1711,6 @@ async fn handle_goal_refinement(
 
         goal.criteria.extend(new_criteria);
         
-        // Check if we have enough criteria
         if goal.criteria.len() >= 3 {
             goal.status = GoalStatus::Active;
             
@@ -1714,13 +1724,11 @@ async fn handle_goal_refinement(
                 log!("ERROR: Failed to save refined goal: {}", e);
             }
             
-            // Redirect to study page
             Ok(Html(format!(
                 r#"<script>window.location.href = '/study/{}';</script>"#,
                 goal_id
             )))
         } else {
-            // Continue refinement
             Ok(Html(format!(
                 r#"<script>window.location.href = '/goals/{}/refine';</script>"#,
                 goal_id
