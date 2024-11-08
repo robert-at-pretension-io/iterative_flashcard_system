@@ -995,78 +995,128 @@ Format your response as simple text with one criterion per line."#
         api_key: &str,
         messages: &[ChatMessage],
     ) -> Result<Vec<Card>, Box<dyn Error>> {
-        let prompt = r#"Create 5 flashcards for this learning goal. Note that the context will be shown to the user so it shouldn't give away the answer.
-Return a JSON array where each card has the following properties:
-{
-    "question": "string - The question to ask",
-    "answer": "string - The complete correct answer",
-    "context": "string - Additional explanation or context for the topic",
-    "difficulty": "number (1-5) - The difficulty level of the card",
-    "tags": ["string - Topic tags"]
-}
-Format your entire response as a valid JSON array of these objects."#;
+        let max_retries = 3;
+        let mut attempt = 0;
+        
+        while attempt < max_retries {
+            let response = self.generate_chat_completion(
+                api_key,
+                messages.to_vec(),
+                "gpt-4o-mini",
+                Some(0.7),
+                Some(1000),
+            ).await?;
 
-        let mut card_messages = messages.to_vec();
-        card_messages.push(ChatMessage {
-            role: "system".to_string(),
-            content: prompt.to_string(),
-        });
+            // Clean up the response content by removing markdown code block markers
+            let content = response.choices[0].message.content.replace("```json", "")
+                .replace("```", "")
+                .trim()
+                .to_string();
 
-        let response = self.generate_chat_completion(
-            api_key,
-            card_messages,
-            "gpt-4o-mini",
-            Some(0.7),
-            Some(1000),
-        ).await?;
+            log!("Cleaned JSON content: {}", content);
 
-        // Clean up the response content by removing markdown code block markers
-        let content = response.choices[0].message.content.replace("```json", "")
-            .replace("```", "")
-            .trim()
-            .to_string();
+            // Try different JSON parsing approaches
+            let parse_result = match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(json) => {
+                    // First try parsing as an object with "cards" array
+                    if let Some(cards) = json.get("cards").and_then(|c| c.as_array()) {
+                        Ok(cards.to_owned())
+                    }
+                    // Then try parsing as a direct array
+                    else if json.is_array() {
+                        Ok(json.as_array().unwrap().to_owned())
+                    }
+                    else {
+                        Err("Invalid JSON structure".into())
+                    }
+                },
+                Err(e) => Err(format!("JSON parsing error: {}", e))
+            };
 
-        log!("Cleaned JSON content: {}", content);
+            match parse_result {
+                Ok(cards_array) => {
+                    // Convert the parsed JSON into Card structs
+                    let cards: Result<Vec<Card>, _> = cards_array.iter()
+                        .map(|card_json| {
+                            Ok(Card {
+                                id: Uuid::new_v4(),
+                                goal_id: self.goals.last().ok_or("No active goal")?.id,
+                                question: card_json.get("question")
+                                    .and_then(|q| q.as_str())
+                                    .ok_or("Missing question")?
+                                    .to_string(),
+                                answer: card_json.get("answer")
+                                    .and_then(|a| a.as_str())
+                                    .ok_or("Missing answer")?
+                                    .to_string(),
+                                context: card_json.get("context")
+                                    .and_then(|c| c.as_str())
+                                    .ok_or("Missing context")?
+                                    .to_string(),
+                                difficulty: card_json.get("difficulty")
+                                    .and_then(|d| d.as_u64())
+                                    .map(|d| d as u8)
+                                    .unwrap_or(3),
+                                tags: card_json.get("tags")
+                                    .and_then(|t| t.as_array())
+                                    .map(|tags| tags.iter()
+                                        .filter_map(|t| t.as_str())
+                                        .map(String::from)
+                                        .collect())
+                                    .unwrap_or_else(|| self.goals.last()
+                                        .map(|g| g.tags.clone())
+                                        .unwrap_or_default()),
+                                created_at: Utc::now(),
+                                review_count: 0,
+                                success_rate: 0.0,
+                                spaced_rep: SpacedRepetitionInfo {
+                                    last_reviewed: Utc::now(),
+                                    next_review: Utc::now(),
+                                    interval: 1,
+                                    ease_factor: 2.5,
+                                    consecutive_correct: 0,
+                                },
+                                prerequisites: Vec::new(),
+                                last_reviewed: None
+                            })
+                        })
+                        .collect();
 
-        let eval_json: serde_json::Value = serde_json::from_str(&content)?;
-    
-        // Access the "cards" array from the response object
-        let cards_array = eval_json.get("cards")
-            .and_then(|v| v.as_array())
-            .ok_or("Invalid JSON response format")?;
-    
-        let cards = cards_array.iter()
-            .map(|card_json| {
-                Card {
-                    id: Uuid::new_v4(),
-                    goal_id: self.goals.last().unwrap().id,
-                    question: card_json["question"].as_str().unwrap_or("").to_string(),
-                    answer: card_json["answer"].as_str().unwrap_or("").to_string(),
-                    context: card_json["context"].as_str().unwrap_or("").to_string(),
-                    difficulty: card_json["difficulty"].as_u64().unwrap_or(3) as u8,
-                    tags: card_json["tags"].as_array()
-                        .map(|tags| tags.iter()
-                            .filter_map(|t| t.as_str())
-                            .map(|s| s.to_string())
-                            .collect())
-                        .unwrap_or_else(|| self.goals.last().unwrap().tags.clone()),
-                    created_at: Utc::now(),
-                    review_count: 0,
-                    success_rate: 0.0,
-                    spaced_rep: SpacedRepetitionInfo {
-                        last_reviewed: Utc::now(),
-                        next_review: Utc::now(),
-                        interval: 1,
-                        ease_factor: 2.5,
-                        consecutive_correct: 0,
-                    },
-                    prerequisites: Vec::new(),
-                    last_reviewed: None
+                    match cards {
+                        Ok(cards) => return Ok(cards),
+                        Err(e) => {
+                            log!("ERROR: Failed to convert JSON to cards: {}", e);
+                            attempt += 1;
+                            continue;
+                        }
+                    }
+                },
+                Err(e) => {
+                    log!("ERROR: Failed to parse JSON on attempt {}: {}", attempt + 1, e);
+                    
+                    // On failure, try to get better formatted JSON with an explicit retry prompt
+                    if attempt < max_retries - 1 {
+                        let retry_messages = vec![
+                            ChatMessage {
+                                role: "system".to_string(),
+                                content: format!(
+                                    "The previous response had invalid JSON. Please provide the flashcards in valid JSON format exactly as follows:\n\
+                                    {{\n    \"cards\": [\n        {{\n            \"question\": \"string\",\n            \
+                                    \"answer\": \"string\",\n            \"context\": \"string\",\n            \
+                                    \"difficulty\": number,\n            \"tags\": [\"string\"]\n        }}\n    ]\n}}"
+                                ),
+                            },
+                            messages.last().unwrap().clone(),
+                        ];
+                        messages = &retry_messages;
+                    }
+                    attempt += 1;
+                    continue;
                 }
-            })
-            .collect();
+            }
+        }
 
-        Ok(cards)
+        Err("Failed to generate valid card data after multiple attempts".into())
     }
 
     async fn generate_evaluation(
