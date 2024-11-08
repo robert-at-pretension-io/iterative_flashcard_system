@@ -519,9 +519,16 @@ impl LearningSystem {
 
         log!("Parsing evaluation response: {:?}", response);
 
-        match serde_json::from_str(&response.choices[0].message.content) {
-        Ok(eval_json ) =>
-            Discussion {
+        // Specify the type as Value for serde_json parsing
+        let eval_json: serde_json::Value = serde_json::from_str(&response.choices[0].message.content)
+            .map_err(|e| {
+                log!("ERROR: Failed to parse evaluation JSON: {}", e);
+                log!("Raw response content: {}", response.choices[0].message.content);
+                e
+            })?;
+
+        // Wrap the Discussion in Ok() since we're returning a Result
+        Ok(Discussion {
             id: Uuid::new_v4(),
             card_id: Uuid::nil(), // This should be set by the caller
             user_response: messages.last().unwrap().content.clone(),
@@ -534,9 +541,7 @@ impl LearningSystem {
                 .map(|point| point.as_str().unwrap_or("").to_string())
                 .collect(),
             timestamp: Utc::now(),
-        }
-    
-
+        })
     }
 }
     
