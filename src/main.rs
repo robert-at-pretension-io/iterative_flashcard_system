@@ -757,7 +757,7 @@ impl LearningSystem {
         api_key: &str,
         messages: &[ChatMessage],
     ) -> Result<Vec<Card>, Box<dyn Error>> {
-        let prompt = r#"Create 5 flashcards for this learning goal. 
+        let prompt = r#"Create 5 flashcards for this learning goal. Not that the context will be shown to the user so it shouldn't give away the answer.
 Return a JSON array where each card has the following properties:
 {
     "question": "string - The question to ask",
