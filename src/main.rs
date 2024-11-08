@@ -449,9 +449,15 @@ impl LearningSystem {
         api_key: &str,
         messages: &[ChatMessage],
     ) -> Result<Vec<Card>, Box<dyn Error>> {
-        let prompt = "Create 5 flashcards for this learning goal. \
-                     Each card should have a clear question, comprehensive answer, relevant context, \
-                     and appropriate difficulty level (1-5). Format as JSON array.";
+        let prompt = r#"Create 5 flashcards for this learning goal. 
+Return a JSON array where each card has the following properties:
+{
+    "question": "string - The question to ask",
+    "answer": "string - The complete correct answer",
+    "context": "string - Additional explanation or context for the topic",
+    "difficulty": "number (1-5) - The difficulty level of the card"
+}
+Format your entire response as a valid JSON array of these objects."#;
 
         let mut card_messages = messages.to_vec();
         card_messages.push(ChatMessage {
@@ -493,11 +499,14 @@ impl LearningSystem {
         api_key: &str,
         messages: &[ChatMessage],
     ) -> Result<Discussion, Box<dyn Error>> {
-        let prompt = "Evaluate the user's response to this flashcard. Provide: \
-                     1) A correctness score (0-1), \
-                     2) Detailed critique of the response, \
-                     3) Key learning points for improvement. \
-                     Format as JSON.";
+        let prompt = r#"Evaluate the user's response to this flashcard. 
+Return a JSON object with exactly these properties:
+{
+    "score": "number (0.0-1.0) - The correctness score",
+    "critique": "string - Detailed critique of the response",
+    "learning_points": "array of strings - Key points for improvement"
+}
+Format your entire response as a valid JSON object with these exact properties."#;
 
         log!("Generating evaluation with prompt: {}", prompt);
         
