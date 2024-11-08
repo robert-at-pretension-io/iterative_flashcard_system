@@ -14,11 +14,39 @@ An intelligent flashcard system that uses AI to help create and manage personali
 
 ## Prerequisites
 
+### Installing Rust
+
+1. Install Rust using rustup (recommended method):
+
+**Unix-like OS (Linux, macOS):**
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+**Windows:**
+1. Download and run [rustup-init.exe](https://rustup.rs/)
+2. Follow the on-screen instructions
+3. You may need to install Visual Studio C++ Build Tools
+
+After installation:
+1. Restart your terminal
+2. Verify installation:
+```bash
+rustc --version
+cargo --version
+```
+
+If you need to update Rust later:
+```bash
+rustup update
+```
+
+### Other Prerequisites
 - Rust (1.70 or later)
 - OpenAI API key (gpt-4o-mini access recommended)
 - 512MB RAM minimum
 - 1GB free disk space
-- Internet connection 
+- Internet connection
 
 ## Quick Start
 
