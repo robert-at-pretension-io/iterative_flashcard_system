@@ -735,7 +735,7 @@ Previous Performance: {} reviews, {}% success rate"#,
         let response = self.generate_chat_completion(
             api_key,
             messages,
-            "gpt-4",
+            "gpt-4o-mini",
             Some(0.7),
             Some(500),
         ).await?;
@@ -891,7 +891,7 @@ Format your response as simple text with one criterion per line."#
         let response = self.generate_chat_completion(
             api_key,
             refinement_messages,
-            "gpt-4",
+            "gpt-4o-mini",
             Some(0.7),
             Some(500),
         ).await?;
@@ -951,7 +951,7 @@ Format your entire response as a valid JSON array of these objects."#;
         let response = self.generate_chat_completion(
             api_key,
             card_messages,
-            "gpt-4",
+            "gpt-4o-mini",
             Some(0.7),
             Some(1000),
         ).await?;
@@ -1905,7 +1905,7 @@ Please return ONLY the new criteria, one per line."#,
     let completion_result = learning_system.generate_chat_completion(
         &api_key,
         messages,
-        "gpt-4",
+        "gpt-4o-mini",
         Some(0.7),
         Some(500),
     ).await?;
