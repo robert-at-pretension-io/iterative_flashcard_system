@@ -1329,6 +1329,31 @@ async fn handle_goal_creation(
 }
 
 #[axum::debug_handler]
+async fn get_due_cards(
+    State(state): State<Arc<Mutex<AppState>>>,
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    // Get due cards from learning system
+    let due_cards = state.learning_system.get_due_cards();
+    
+    // Convert to JSON response
+    Ok(Json(
+        due_cards.into_iter()
+            .map(|card| {
+                json!({
+                    "id": card.id,
+                    "question": card.question,
+                    "goal_id": card.goal_id,
+                    "difficulty": card.difficulty,
+                    "next_review": card.spaced_rep.next_review,
+                    "tags": card.tags
+                })
+            })
+            .collect::<Vec<_>>()
+    ))
+}
+
 async fn show_study_page(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
