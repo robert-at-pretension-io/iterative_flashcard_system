@@ -93,6 +93,7 @@ pub struct SpacedRepetitionInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Card {
     pub id: Uuid,
     pub goal_id: Uuid,
@@ -158,6 +159,7 @@ pub struct CurriculumTopic {
     pub order: i32,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct LearningSystem {
     pub goals: Vec<Goal>,
     pub cards: Vec<Card>,
@@ -231,7 +233,7 @@ struct CurriculumUpdate {
 
 async fn update_curriculum(
     State(state): State<Arc<Mutex<AppState>>>,
-    Path(goal_id): Path<Uuid>,
+    Path(_goal_id): Path<Uuid>,
     Json(update): Json<CurriculumUpdate>,
 ) -> Result<impl IntoResponse, AppError> {
     let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
@@ -423,7 +425,7 @@ impl LearningSystem {
                 completed_goals: Vec::new(),
                 last_session: None,
             },
-            curriculum: todo!(),
+            curriculum: Vec::new(),
         }
     }
 
@@ -944,7 +946,7 @@ async fn show_knowledge_graph(
                     .selectAll('circle')
                     .data(data.nodes)
                     .enter().append('circle')
-                    .attr('class', d => `node ${d.mastery > 0.8 ? 'mastered' : d.mastery < 0.4 ? 'weak' : ''}`)
+                    .attr('class', d => `node ${{d.mastery > 0.8 ? 'mastered' : d.mastery < 0.4 ? 'weak' : ''}}`)
                     .attr('r', d => 5 + d.level * 2)
                     .call(d3.drag()
                         .on('start', dragstarted)
@@ -1478,6 +1480,14 @@ async fn main() {
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .route("/curriculum/:goal_id", post(update_curriculum))
         .route("/due-cards", get(get_due_cards))
+
+async fn get_due_cards(
+    State(state): State<Arc<Mutex<AppState>>>,
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    let due_cards = state.learning_system.get_due_cards();
+    Ok(Json(due_cards))
+}
         .route("/knowledge-graph/:goal_id", get(show_knowledge_graph))
         .with_state(state);
 
