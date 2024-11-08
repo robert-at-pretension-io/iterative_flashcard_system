@@ -369,15 +369,16 @@ impl LearningSystem {
                 }
             }
         } else {
+            let status = response.status();  // Store status before consuming response
             let error_text = match response.text().await {
                 Ok(text) => text,
                 Err(e) => format!("Could not read error response: {}", e),
             };
             log!("ERROR: API request failed with status {}: {}", 
-                response.status(), error_text);
+                status, error_text);  // Use stored status
             Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("API request failed ({}): {}", response.status(), error_text),
+                format!("API request failed ({}): {}", status, error_text),  // Use stored status
             )))
         }
     }
@@ -889,7 +890,7 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let api_key = match std::env::var("OPENAI_API_KEY") {
+    let _api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully retrieved API key");
             key
