@@ -43,6 +43,26 @@ use std::fs;
 use uuid::Uuid;
 use bcrypt::{hash, verify, DEFAULT_COST};
 
+#[derive(Serialize)]
+struct KnowledgeGraphData {
+    nodes: Vec<GraphNode>,
+    edges: Vec<GraphEdge>,
+}
+
+#[derive(Serialize)]
+struct GraphNode {
+    id: String,
+    label: String,
+    level: u8,
+    mastery: f32,
+}
+
+#[derive(Serialize)]
+struct GraphEdge {
+    source: String,
+    target: String,
+}
+
 // ---- Core Data Structures ----
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -239,6 +259,67 @@ async fn update_curriculum(
 }
 
 impl LearningSystem {
+    fn adjust_card_difficulty(&mut self, card_id: Uuid, performance_history: &[f32]) -> Result<(), Box<dyn Error>> {
+        let card = self.cards.iter_mut()
+            .find(|c| c.id == card_id)
+            .ok_or("Card not found")?;
+        
+        // Calculate trend from recent performances
+        let trend = if performance_history.len() >= 3 {
+            let recent = &performance_history[performance_history.len()-3..];
+            (recent[2] - recent[0]) / 2.0
+        } else {
+            0.0
+        };
+
+        // Adjust difficulty based on performance trend
+        if trend > 0.2 && card.difficulty < 5 {
+            card.difficulty += 1;
+        } else if trend < -0.2 && card.difficulty > 1 {
+            card.difficulty -= 1;
+        }
+
+        Ok(())
+    }
+
+    fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Vec<&Card> {
+        let mut available_time = duration_minutes;
+        let mut session_cards = Vec::new();
+        
+        // Get due cards first
+        let mut due_cards: Vec<&Card> = self.get_due_cards().into_iter()
+            .filter(|c| c.goal_id == goal_id)
+            .collect();
+        
+        // Sort by overdue duration
+        due_cards.sort_by(|a, b| {
+            b.spaced_rep.next_review.cmp(&a.spaced_rep.next_review)
+        });
+
+        // Add due cards until we fill half the session time
+        while available_time > duration_minutes / 2 && !due_cards.is_empty() {
+            if let Some(card) = due_cards.pop() {
+                session_cards.push(card);
+                available_time -= 2; // Assume 2 minutes per card
+            }
+        }
+
+        // Fill remaining time with cards that need reinforcement
+        let weak_cards: Vec<&Card> = self.cards.iter()
+            .filter(|c| c.goal_id == goal_id 
+                   && c.success_rate < 0.7 
+                   && !session_cards.contains(c))
+            .collect();
+
+        for card in weak_cards {
+            if available_time < 2 { break; }
+            session_cards.push(card);
+            available_time -= 2;
+        }
+
+        session_cards
+    }
+
     fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
         let mut spaced_rep = card.spaced_rep.clone();
         
@@ -750,6 +831,124 @@ async fn handle_login(
 }
 
 #[axum::debug_handler]
+async fn show_knowledge_graph(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    let graph_data = state.learning_system.generate_knowledge_graph(goal_id);
+    
+    Ok(Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Knowledge Graph</title>
+            <script src="https://d3js.org/d3.v7.min.js"></script>
+            <style>
+                .node {{
+                    fill: #66b2ff;
+                    stroke: #fff;
+                    stroke-width: 2px;
+                }}
+                .node.mastered {{
+                    fill: #28a745;
+                }}
+                .node.weak {{
+                    fill: #dc3545;
+                }}
+                .link {{
+                    stroke: #999;
+                    stroke-opacity: 0.6;
+                    stroke-width: 1px;
+                }}
+                .node-label {{
+                    font-family: Arial;
+                    font-size: 12px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div id="graph"></div>
+            <script>
+                const data = {};
+                
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+
+                const svg = d3.select('#graph')
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height);
+
+                const simulation = d3.forceSimulation(data.nodes)
+                    .force('link', d3.forceLink(data.edges)
+                        .id(d => d.id)
+                        .distance(100))
+                    .force('charge', d3.forceManyBody().strength(-200))
+                    .force('center', d3.forceCenter(width / 2, height / 2));
+
+                const link = svg.append('g')
+                    .selectAll('line')
+                    .data(data.edges)
+                    .enter().append('line')
+                    .attr('class', 'link');
+
+                const node = svg.append('g')
+                    .selectAll('circle')
+                    .data(data.nodes)
+                    .enter().append('circle')
+                    .attr('class', d => `node ${d.mastery > 0.8 ? 'mastered' : d.mastery < 0.4 ? 'weak' : ''}`)
+                    .attr('r', d => 5 + d.level * 2)
+                    .call(d3.drag()
+                        .on('start', dragstarted)
+                        .on('drag', dragged)
+                        .on('end', dragended));
+
+                const label = svg.append('g')
+                    .selectAll('text')
+                    .data(data.nodes)
+                    .enter().append('text')
+                    .attr('class', 'node-label')
+                    .text(d => d.label);
+
+                simulation.on('tick', () => {{
+                    link
+                        .attr('x1', d => d.source.x)
+                        .attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x)
+                        .attr('y2', d => d.target.y);
+
+                    node
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y);
+
+                    label
+                        .attr('x', d => d.x + 10)
+                        .attr('y', d => d.y + 3);
+                }});
+
+                function dragstarted(event, d) {{
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                }}
+
+                function dragged(event, d) {{
+                    d.fx = event.x;
+                    d.fy = event.y;
+                }}
+
+                function dragended(event, d) {{
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }}
+            </script>
+        </body>
+        </html>
+    "#, serde_json::to_string(&graph_data)?)))
+}
+
 async fn handle_answer_submission(
     State(state): State<Arc<Mutex<AppState>>>,
     Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
@@ -1232,6 +1431,7 @@ async fn main() {
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .route("/curriculum/:goal_id", post(update_curriculum))
         .route("/due-cards", get(get_due_cards))
+        .route("/knowledge-graph/:goal_id", get(show_knowledge_graph))
         .with_state(state);
 
     log!("Starting server on http://localhost:3000");
