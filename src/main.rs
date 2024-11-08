@@ -1578,9 +1578,17 @@ async fn show_dashboard(
                             {}
                         </ul>
                     </div>
-                    <a href="/study/{}" class="action-button">
-                        Continue Studying
-                    </a>
+                    <div class="action-buttons">
+                        <a href="/study/{}" class="action-button">
+                            Continue Studying
+                        </a>
+                        <a href="/practice/{}" class="action-button">
+                            Start Practice Session
+                        </a>
+                        <a href="/knowledge-graph/{}" class="action-button">
+                            View Knowledge Graph
+                        </a>
+                    </div>
                 </div>
             "#,
             g.description,
@@ -1591,6 +1599,8 @@ async fn show_dashboard(
                 .map(|c| format!("<li>{}</li>", c))
                 .collect::<Vec<_>>()
                 .join("\n"),
+            g.id,
+            g.id,
             g.id
             )
         })
