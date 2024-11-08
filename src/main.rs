@@ -400,35 +400,50 @@ impl LearningSystem {
         KnowledgeGraphData { nodes, edges }
     }
 
-    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {                     
-        let mut spaced_rep = card.spaced_rep.clone();                                                            
-                                                                                                                 
-        // SuperMemo 2 algorithm                                                                                 
-        if performance >= 0.8 {                                                                                  
-            spaced_rep.consecutive_correct += 1;                                                                 
-            if spaced_rep.consecutive_correct == 1 {                                                             
-                spaced_rep.interval = 1;                                                                         
-            } else if spaced_rep.consecutive_correct == 2 {                                                      
-                spaced_rep.interval = 6;                                                                         
-            } else {                                                                                             
-                spaced_rep.interval = ((spaced_rep.interval as f32) * spaced_rep.ease_factor) as i32;            
-            }                                                                                                    
-            spaced_rep.ease_factor = spaced_rep.ease_factor + 0.1;                                               
-        } else {                                                                                                 
-            spaced_rep.consecutive_correct = 0;                                                                  
-            spaced_rep.interval = 1;                                                                             
-            spaced_rep.ease_factor = spaced_rep.ease_factor - 0.2;                                               
-        }                                                                                                        
-                                                                                                                 
-        // Ensure bounds                                                                                         
-        spaced_rep.ease_factor = spaced_rep.ease_factor.max(1.3);                                                
-        spaced_rep.interval = spaced_rep.interval.max(1);                                                        
-                                                                                                                 
-        spaced_rep.last_reviewed = Utc::now();                                                                   
-        spaced_rep.next_review = Utc::now() + chrono::Duration::days(spaced_rep.interval as i64);                
-                                                                                                                 
-        spaced_rep                                                                                               
-    }   
+    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
+        let mut spaced_rep = card.spaced_rep.clone();
+        
+        // SuperMemo 2 algorithm with performance-based adjustments
+        if performance >= 0.6 {  // Lower threshold for "correct" answers
+            spaced_rep.consecutive_correct += 1;
+            
+            // Scale interval increase based on performance
+            let performance_multiplier = 0.5 + (performance * 0.5);  // Range: 0.5-1.0
+            
+            if spaced_rep.consecutive_correct == 1 {
+                spaced_rep.interval = 1;
+            } else if spaced_rep.consecutive_correct == 2 {
+                spaced_rep.interval = (6.0 * performance_multiplier) as i32;
+            } else {
+                let base_interval = (spaced_rep.interval as f32) * spaced_rep.ease_factor;
+                spaced_rep.interval = (base_interval * performance_multiplier) as i32;
+            }
+            
+            // Adjust ease factor based on performance
+            let ease_adjustment = match performance {
+                x if x >= 0.9 => 0.15,  // Excellent performance
+                x if x >= 0.8 => 0.10,  // Good performance
+                x if x >= 0.7 => 0.05,  // Decent performance
+                _ => 0.0,               // Barely passing
+            };
+            spaced_rep.ease_factor += ease_adjustment;
+        } else {
+            // Reset for failed reviews, with severity based on performance
+            spaced_rep.consecutive_correct = 0;
+            spaced_rep.interval = if performance < 0.3 { 1 } else { 2 };  // Shorter reset for near-misses
+            spaced_rep.ease_factor -= 0.2 * (0.6 - performance);  // More penalty for worse performance
+        }
+        
+        // Ensure bounds
+        spaced_rep.ease_factor = spaced_rep.ease_factor.max(1.3).min(2.5);
+        spaced_rep.interval = spaced_rep.interval.max(1);
+        
+        // Update timestamps
+        spaced_rep.last_reviewed = Utc::now();
+        spaced_rep.next_review = Utc::now() + chrono::Duration::days(spaced_rep.interval as i64);
+        
+        spaced_rep
+    }
     pub fn get_due_cards(&self) -> Vec<&Card> {
         self.cards.iter()
             .filter(|card| {
