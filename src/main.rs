@@ -1668,51 +1668,38 @@ async fn handle_goal_refinement(
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    // Get initial messages by cloning necessary data
-    let messages = {
+    // Clone the learning system first
+    let mut learning_system = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        let goal = state.learning_system.goals.iter()
-            .find(|g| g.id == goal_id)
-            .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
-        
-        // Clone the data we need
-        let goal_description = goal.description.clone();
-        
-        vec![
-            ChatMessage {
-                role: "system".to_string(),
-                content: "You are helping to refine a learning goal. Based on the user's response, suggest specific, measurable criteria for success.".to_string(),
-            },
-            ChatMessage {
-                role: "user".to_string(),
-                content: format!("Goal: {}\nUser's response: {}", goal_description, form.response),
-            },
-        ]
-    }; // MutexGuard is dropped here
-
-    // Generate completion using cloned data
-    let completion_result = {
-        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        let learning_system = &state.learning_system;
-        
-        // Clone the learning system to avoid holding the lock during the await
-        let system_clone = learning_system.clone();
-        drop(state); // Explicitly drop the MutexGuard
-
-        system_clone.generate_chat_completion(
-            &api_key,
-            messages,
-            "gpt-4",
-            Some(0.7),
-            Some(500),
-        ).await?
+        state.learning_system.clone()
     };
 
-    // Update state with new criteria
+    // Use the cloned system for all operations
+    let goal = learning_system.goals.iter()
+        .find(|g| g.id == goal_id)
+        .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
+
+    let messages = vec![
+        ChatMessage {
+            role: "system".to_string(),
+            content: "You are helping to refine a learning goal. Based on the user's response, suggest specific, measurable criteria for success.".to_string(),
+        },
+        ChatMessage {
+            role: "user".to_string(),
+            content: format!("Goal: {}\nUser's response: {}", goal.description, form.response),
+        },
+    ];
+
+    let completion_result = learning_system.generate_chat_completion(
+        &api_key,
+        messages,
+        "gpt-4",
+        Some(0.7),
+        Some(500),
+    ).await?;
+
     let should_generate_cards = {
-        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        
-        if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
+        if let Some(goal) = learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
             let new_criteria = completion_result.choices[0].message.content
                 .lines()
                 .filter(|line| !line.trim().is_empty())
@@ -1721,41 +1708,33 @@ async fn handle_goal_refinement(
 
             goal.criteria.extend(new_criteria);
             
-            let should_generate = goal.criteria.len() >= 3;
-            if should_generate {
+            if goal.criteria.len() >= 3 {
                 goal.status = GoalStatus::Active;
+                true
+            } else {
+                false
             }
-            
-            if let Err(e) = state.learning_system.save("learning_system.json") {
-                log!("ERROR: Failed to save refined goal: {}", e);
-            }
-            
-            should_generate
         } else {
             return Err(AppError::NotFound("Goal not found".to_string()));
         }
     };
 
     if should_generate_cards {
-        // Generate cards for the refined goal
-        let result = {
-            let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-            let system_clone = state.learning_system.clone();
-            drop(state);
-            
-            system_clone.generate_cards_for_goal(&api_key, goal_id).await
-        };
-
-        if let Err(e) = result {
+        if let Err(e) = learning_system.generate_cards_for_goal(&api_key, goal_id).await {
             log!("ERROR: Failed to generate cards: {}", e);
         }
+    }
 
-        // Save the final state
+    // Update the original state with our modified copy
+    {
         let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        state.learning_system = learning_system;
         if let Err(e) = state.learning_system.save("learning_system.json") {
             log!("ERROR: Failed to save learning system: {}", e);
         }
-        
+    }
+
+    if should_generate_cards {
         Ok(Html(format!(
             r#"<script>window.location.href = '/study/{}';</script>"#,
             goal_id
