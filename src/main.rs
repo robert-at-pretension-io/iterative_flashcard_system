@@ -553,6 +553,22 @@ impl LearningSystem {
     }
 
     // Flashcard Generation
+    fn sync_goal_tags(&mut self, goal_id: Uuid) {
+        let mut all_tags = std::collections::HashSet::new();
+        
+        // Collect all unique tags from cards associated with this goal
+        for card in &self.cards {
+            if card.goal_id == goal_id {
+                all_tags.extend(card.tags.iter().cloned());
+            }
+        }
+        
+        // Update the goal's tags if we found it
+        if let Some(goal) = self.goals.iter_mut().find(|g| g.id == goal_id) {
+            goal.tags = all_tags.into_iter().collect();
+        }
+    }
+
     pub async fn generate_cards_for_goal(&mut self, api_key: &str, goal_id: Uuid) -> Result<Vec<Card>, Box<dyn Error>> {
         let goal = self.goals.iter()
             .find(|g| g.id == goal_id)
@@ -643,6 +659,10 @@ Return exactly 5 cards in this JSON format:
 
         let cards = self.generate_structured_cards(&api_key, &messages).await?;
         self.cards.extend(cards.clone());
+        
+        // Sync tags after adding new cards
+        self.sync_goal_tags(goal_id);
+        
         Ok(cards)
     }
 
