@@ -1,16 +1,13 @@
 use chrono::{DateTime, Utc};
 use reqwest::Client;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
 use uuid::Uuid;
-use schemars_uuid::JsonSchema as UuidJsonSchema;
-use chrono_schemars::JsonSchema as ChronoJsonSchema;
 
 // ---- Core Data Structures ----
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Goal {
     pub id: Uuid,
     pub description: String,
@@ -20,7 +17,7 @@ pub struct Goal {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum GoalStatus {
     Discovery,           // Still being refined
     Active,             // Currently being worked on
@@ -28,7 +25,7 @@ pub enum GoalStatus {
     Archived,           // No longer active
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Card {
     pub id: Uuid,
     pub goal_id: Uuid,
@@ -43,7 +40,7 @@ pub struct Card {
     pub success_rate: f32,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Discussion {
     pub id: Uuid,
     pub card_id: Uuid,
@@ -54,7 +51,7 @@ pub struct Discussion {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct TagPerformance {
     pub tag: String,
     pub total_attempts: u32,
@@ -63,7 +60,7 @@ pub struct TagPerformance {
     pub average_score: f32,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserProgress {
     pub total_cards_reviewed: u64,
     pub total_study_sessions: u64,
@@ -73,7 +70,7 @@ pub struct UserProgress {
     pub last_session: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct LearningSystem {
     pub goals: Vec<Goal>,
     pub cards: Vec<Card>,
