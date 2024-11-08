@@ -5,6 +5,7 @@ use axum::{
     extract::{State, Form, Path},
     http::StatusCode,
 };
+use tokio::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
@@ -502,7 +503,7 @@ async fn show_login() -> Html<String> {
 async fn handle_login(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<LoginForm>,
-) -> impl IntoResponse {
+) -> Result<Html<String>, StatusCode> {
     let mut state = state.lock().unwrap();
     let ip = "127.0.0.1".to_string(); // In production, extract real IP
     
@@ -544,7 +545,7 @@ async fn handle_answer_submission(
     State(state): State<Arc<Mutex<AppState>>>,
     Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
     Form(form): Form<AnswerSubmission>,
-) -> impl IntoResponse {
+) -> Result<Html<String>, StatusCode> {
     let mut state = state.lock().unwrap();
     
     let api_key = std::env::var("OPENAI_API_KEY")
@@ -729,7 +730,7 @@ struct AnswerSubmission {
 async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<GoalForm>,
-) -> impl IntoResponse {
+) -> Result<Html<String>, StatusCode> {
     let mut state = state.lock().unwrap();
     
     let api_key = std::env::var("OPENAI_API_KEY")
@@ -754,7 +755,7 @@ async fn handle_goal_creation(
 async fn show_study_page(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
-) -> impl IntoResponse {
+) -> Result<Html<String>, StatusCode> {
     let state = state.lock().unwrap();
     
     let goal = state.learning_system.goals.iter()
@@ -881,9 +882,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_state(state);
 
     println!("Server running on http://localhost:3000");
-    axum::Server::bind(&"0.0.0.0:3000".parse()?)
-        .serve(app.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
 }
