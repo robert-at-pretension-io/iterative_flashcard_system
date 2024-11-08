@@ -1570,6 +1570,167 @@ struct AnswerSubmission {
     user_answer: String,
 }
 
+#[derive(Deserialize)]
+struct RefinementResponse {
+    response: String,
+}
+
+async fn show_goal_refinement(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    let goal = state.learning_system.goals.iter()
+        .find(|g| g.id == goal_id)
+        .ok_or_else(|| AppError::NotFound("Goal not found".to_string()))?;
+
+    Ok(Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Refine Learning Goal</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .container {{ max-width: 800px; margin: 0 auto; }}
+                .question-box {{ 
+                    background: #f8f9fa; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    margin: 20px 0; 
+                }}
+                .answer-input {{ 
+                    width: 100%; 
+                    min-height: 100px; 
+                    margin: 10px 0; 
+                    padding: 8px; 
+                }}
+                .submit-btn {{ 
+                    background: #007bff; 
+                    color: white; 
+                    padding: 10px 20px; 
+                    border: none; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                }}
+                .criteria-list {{ margin: 20px 0; }}
+                .criteria-item {{ 
+                    background: #e9ecef; 
+                    padding: 10px; 
+                    margin: 5px 0; 
+                    border-radius: 4px; 
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Refine Your Learning Goal</h1>
+                <p><strong>Current Goal:</strong> {}</p>
+                
+                <div class="criteria-list">
+                    <h3>Current Criteria:</h3>
+                    {}
+                </div>
+
+                <div class="question-box">
+                    <form action="/goals/{}/refine" method="POST">
+                        <h3>Please answer this question to help refine your goal:</h3>
+                        <p>{}</p>
+                        <textarea 
+                            class="answer-input" 
+                            name="response" 
+                            required 
+                            placeholder="Type your answer here..."
+                        ></textarea>
+                        <button type="submit" class="submit-btn">Submit Answer</button>
+                    </form>
+                </div>
+            </div>
+        </body>
+        </html>
+    "#,
+        goal.description,
+        goal.criteria.iter()
+            .map(|c| format!("<div class=\"criteria-item\">{}</div>", c))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        goal_id,
+        "What specific aspects of this topic are you most interested in learning about?"
+    )))
+}
+
+async fn handle_goal_refinement(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+    Form(form): Form<RefinementResponse>,
+) -> Result<impl IntoResponse, AppError> {
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
+
+    // Update goal with refined information
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    if let Some(goal) = state.learning_system.goals.iter_mut().find(|g| g.id == goal_id) {
+        // Use the response to generate refined criteria
+        let messages = vec![
+            ChatMessage {
+                role: "system".to_string(),
+                content: "You are helping to refine a learning goal. Based on the user's response, suggest specific, measurable criteria for success.".to_string(),
+            },
+            ChatMessage {
+                role: "user".to_string(),
+                content: format!("Goal: {}\nUser's response: {}", goal.description, form.response),
+            },
+        ];
+
+        let response = state.learning_system.generate_chat_completion(
+            &api_key,
+            messages,
+            "gpt-4",
+            Some(0.7),
+            Some(500),
+        ).await?;
+
+        // Parse and update criteria
+        let new_criteria = response.choices[0].message.content
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| line.trim().to_string())
+            .collect::<Vec<_>>();
+
+        goal.criteria.extend(new_criteria);
+        
+        // Check if we have enough criteria
+        if goal.criteria.len() >= 3 {
+            goal.status = GoalStatus::Active;
+            
+            // Generate cards for the refined goal
+            if let Err(e) = state.learning_system.generate_cards_for_goal(&api_key, goal_id).await {
+                log!("ERROR: Failed to generate cards: {}", e);
+            }
+            
+            // Save changes
+            if let Err(e) = state.learning_system.save("learning_system.json") {
+                log!("ERROR: Failed to save refined goal: {}", e);
+            }
+            
+            // Redirect to study page
+            Ok(Html(format!(
+                r#"<script>window.location.href = '/study/{}';</script>"#,
+                goal_id
+            )))
+        } else {
+            // Continue refinement
+            Ok(Html(format!(
+                r#"<script>window.location.href = '/goals/{}/refine';</script>"#,
+                goal_id
+            )))
+        }
+    } else {
+        Err(AppError::NotFound("Goal not found".to_string()))
+    }
+}
+
 #[axum::debug_handler]
 async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
@@ -1577,54 +1738,28 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let api_key = match std::env::var("OPENAI_API_KEY") {
-        Ok(key) => {
-            log!("Successfully retrieved API key");
-            key
-        },
-        Err(e) => {
-            log!("ERROR: Failed to get API key: {}", e);
-            return Err(AppError::SystemError("API key not found".to_string()));
-        }
+    // Create initial goal
+    let goal = Goal {
+        id: Uuid::new_v4(),
+        description: form.topic.clone(),
+        criteria: Vec::new(),
+        tags: Vec::new(),
+        status: GoalStatus::Discovery,
+        created_at: Utc::now(),
     };
 
-    // Clone the learning system
-    let mut learning_system = {
-        log!("Acquiring state lock for system clone");
-        let state = state.lock().map_err(|e| {
-            log!("ERROR: Failed to acquire lock: {}", e);
-            AppError::SystemError("Lock error".to_string())
-        })?;
-        state.learning_system.clone()
-    };
-    log!("Successfully cloned learning system");
-
-    // Discover goal using the cloned system
-    let goal = learning_system.discover_goal(&api_key, &form.topic)
-        .await
-        .map_err(|e| AppError::SystemError(e.to_string()))?;
-
-    // Generate cards using the cloned system
-    if let Err(e) = learning_system.generate_cards_for_goal(&api_key, goal.id).await {
-        log!("ERROR: Failed to generate cards: {}", e);
-        return Err(AppError::SystemError(format!("Failed to generate cards: {}", e)));
-    }
-
-    // Update the original state with the modified system and save to disk
+    // Store the goal in the state
     {
         let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-        state.learning_system = learning_system;
-        
-        // Save the updated state to disk
+        state.learning_system.goals.push(goal.clone());
         if let Err(e) = state.learning_system.save("learning_system.json") {
-            log!("ERROR: Failed to save learning system: {}", e);
-            return Err(AppError::SystemError("Failed to save changes".to_string()));
+            log!("ERROR: Failed to save initial goal: {}", e);
         }
-        log!("Successfully saved learning system with new goal and cards");
     }
-    
+
+    // Redirect to the refinement page
     Ok(Html(format!(
-        r#"<script>window.location.href = '/study/{}';</script>"#,
+        r#"<script>window.location.href = '/goals/{}/refine';</script>"#,
         goal.id
     )))
 }
@@ -1809,6 +1944,7 @@ async fn main() {
         .route("/login", post(handle_login))
         .route("/dashboard", get(show_dashboard))
         .route("/goals/new", get(show_goal_form).post(handle_goal_creation))
+        .route("/goals/:goal_id/refine", get(show_goal_refinement).post(handle_goal_refinement))
         .route("/study/:goal_id", get(show_study_page))
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .route("/curriculum/:goal_id", post(update_curriculum))
