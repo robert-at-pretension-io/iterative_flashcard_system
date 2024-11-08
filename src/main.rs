@@ -753,9 +753,9 @@ Previous Performance: {} reviews, {}% success rate"#,
                 .unwrap_or(&Vec::new())
                 .iter()
                 .map(|point| LearningPoint {
-                    content: point["content"].as_str().unwrap_or("").to_string(),
+                    content: point.as_str().unwrap_or("").to_string(),
                     timestamp: Utc::now(),
-                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
+                    mastery_level: 0.0,  // Default mastery level
                 })
                 .collect(),
             timestamp: Utc::now(),
