@@ -122,16 +122,27 @@ pub struct Card {
     pub goal_id: Uuid,
     pub question: String,
     pub answer: String,
+    #[serde(default)]
     pub context: String,         // Required context/explanation
+    #[serde(default = "default_difficulty")]
     pub difficulty: u8,          // 1-5 scale
+    #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default = "Utc::now")]
     pub created_at: DateTime<Utc>,
+    #[serde(default)]
     pub review_count: u32,
+    #[serde(default)]
     pub success_rate: f32,
+    #[serde(default)]
     pub spaced_rep: SpacedRepetitionInfo,
+    #[serde(default)]
     pub prerequisites: Vec<Uuid>,  // Cards that should be learned first
+    #[serde(default)]
     pub last_reviewed: Option<DateTime<Utc>>
 }
+
+fn default_difficulty() -> u8 { 3 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Discussion {
@@ -446,19 +457,44 @@ impl LearningSystem {
     }
 
     pub fn new() -> Self {
-        LearningSystem {
+        Self::default()
+    }
+}
+
+impl Default for LearningSystem {
+    fn default() -> Self {
+        Self {
+            version: default_version(),
             goals: Vec::new(),
             cards: Vec::new(),
             discussions: Vec::new(),
-            progress: UserProgress {
-                total_cards_reviewed: 0,
-                total_study_sessions: 0,
-                tag_performance: Vec::new(),
-                active_goals: Vec::new(),
-                completed_goals: Vec::new(),
-                last_session: None,
-            },
+            progress: UserProgress::default(),
             curriculum: Vec::new(),
+        }
+    }
+}
+
+impl Default for UserProgress {
+    fn default() -> Self {
+        Self {
+            total_cards_reviewed: 0,
+            total_study_sessions: 0,
+            tag_performance: Vec::new(),
+            active_goals: Vec::new(),
+            completed_goals: Vec::new(),
+            last_session: None,
+        }
+    }
+}
+
+impl Default for SpacedRepetitionInfo {
+    fn default() -> Self {
+        Self {
+            last_reviewed: Utc::now(),
+            next_review: Utc::now(),
+            interval: 1,
+            ease_factor: 2.5,
+            consecutive_correct: 0,
         }
     }
 
@@ -844,8 +880,66 @@ Format your entire response as a valid JSON object with these exact properties."
 
     pub fn load(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let data = fs::read_to_string(file_path)?;
-        let system: LearningSystem = serde_json::from_str(&data)?;
-        Ok(system)
+        
+        // Try to load with current schema
+        match serde_json::from_str(&data) {
+            Ok(system) => {
+                log!("Successfully loaded data with current schema");
+                Ok(system)
+            },
+            Err(e) => {
+                log!("Error loading with current schema: {}. Attempting migration...", e);
+                Self::migrate_from_json(&data)
+            }
+        }
+    }
+
+    fn migrate_from_json(json_str: &str) -> Result<Self, Box<dyn Error>> {
+        // Create a Value object that we can inspect
+        let mut json: serde_json::Value = serde_json::from_str(json_str)?;
+        
+        // Check version and apply migrations
+        let version = json.get("version")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+
+        // Apply migrations based on version
+        if version < 1 {
+            Self::migrate_to_v1(&mut json)?;
+        }
+        // Add more version migrations as needed
+        
+        // Try to deserialize the migrated data
+        match serde_json::from_value(json) {
+            Ok(system) => Ok(system),
+            Err(e) => {
+                log!("Migration failed: {}. Creating new system.", e);
+                Ok(Self::default())
+            }
+        }
+    }
+
+    fn migrate_to_v1(json: &mut serde_json::Value) -> Result<(), Box<dyn Error>> {
+        // Example migration logic
+        if let Some(obj) = json.as_object_mut() {
+            // Add missing fields with default values
+            if !obj.contains_key("curriculum") {
+                obj.insert("curriculum".to_string(), json!([]));
+            }
+            // Add version field
+            obj.insert("version".to_string(), json!(1));
+        }
+        Ok(())
+    }
+
+    fn create_backup(file_path: &str) -> Result<(), Box<dyn Error>> {
+        let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
+        let backup_path = format!("{}.{}.backup", file_path, timestamp);
+        
+        if std::path::Path::new(file_path).exists() {
+            fs::copy(file_path, backup_path)?;
+        }
+        Ok(())
     }
 
 }
