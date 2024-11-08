@@ -1031,36 +1031,43 @@ async fn handle_practice_submission(
     let api_key = std::env::var("OPENAI_API_KEY")
         .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
 
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    
-    // Get performance history for the card
-    let performance_history: Vec<f32> = state.learning_system.discussions.iter()
-        .filter(|d| d.card_id == card_id)
-        .map(|d| d.correctness_score)
-        .collect();
+    // Get what we need from the locked state
+    let (card_clone, performance_history, mut learning_system) = {
+        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        let card = state.learning_system.cards.iter()
+            .find(|c| c.id == card_id)
+            .ok_or_else(|| AppError::NotFound("Card not found".to_string()))?
+            .clone();
+        let history: Vec<f32> = state.learning_system.discussions.iter()
+            .filter(|d| d.card_id == card_id)
+            .map(|d| d.correctness_score)
+            .collect();
+        (card, history, state.learning_system.clone())
+    };
 
     // Adjust card difficulty based on performance
-    if let Err(e) = state.learning_system.adjust_card_difficulty(card_id, &performance_history) {
+    if let Err(e) = learning_system.adjust_card_difficulty(card_id, &performance_history) {
         log!("Error adjusting card difficulty: {}", e);
     }
 
-    // Evaluate the response
-    let discussion = state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
+    // Evaluate the response using cloned data
+    let discussion = learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
         .await
         .map_err(|e| AppError::SystemError(e.to_string()))?;
 
-    // Update spaced repetition info
-    if let Some(card) = state.learning_system.cards.iter_mut().find(|c| c.id == card_id) {
-        let new_spaced_rep = {
-            let card_clone = card.clone();
-            state.learning_system.calculate_next_review(&card_clone, discussion.correctness_score)
-        };
-        card.spaced_rep = new_spaced_rep;
-    }
+    // Calculate new spaced repetition info
+    let new_spaced_rep = learning_system.calculate_next_review(&card_clone, discussion.correctness_score);
 
-    // Save changes
-    if let Err(e) = state.learning_system.save("learning_system.json") {
-        log!("Error saving state: {}", e);
+    // Update the original state
+    {
+        let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        if let Some(card) = state.learning_system.cards.iter_mut().find(|c| c.id == card_id) {
+            card.spaced_rep = new_spaced_rep;
+        }
+        state.learning_system = learning_system;
+        if let Err(e) = state.learning_system.save("learning_system.json") {
+            log!("Error saving state: {}", e);
+        }
     }
 
     Ok(Html(format!(r#"
@@ -1614,7 +1621,7 @@ async fn show_study_page(
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Study: {0}</title>
+            <title>Study: {}</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 40px; }}
                 .card {{ 
@@ -1656,11 +1663,11 @@ async fn show_study_page(
         <body>
             <div class="nav-bar">
                 <a href="/dashboard">← Back to Dashboard</a>
-                <a href="/practice/{1}" class="practice-btn">Start 30-min Practice Session</a>
+                <a href="/practice/{}" class="practice-btn">Start 30-min Practice Session</a>
             </div>
             
-            <h1>{0}</h1>
-            <p><strong>Goal:</strong> {0}</p>
+            <h1>{}</h1>
+            <p><strong>Goal:</strong> {}</p>
             
             <div class="cards">
                 {}
@@ -1669,7 +1676,7 @@ async fn show_study_page(
         </html>
     "#,
         goal.description,
-        goal.description,
+        goal_id,
         goal.description,
         cards.iter().map(|card| format!(r#"
             <div class="card">
