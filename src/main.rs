@@ -1479,7 +1479,6 @@ async fn show_dashboard(
     State(state): State<Arc<Mutex<AppState>>>,
 ) -> Html<String> {
     let state = state.lock().unwrap();
-    let progress = &state.learning_system.progress;
     
     Html(format!(r#"
         <!DOCTYPE html>
@@ -1488,12 +1487,6 @@ async fn show_dashboard(
             <title>Learning Dashboard</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                .stats {{ 
-                    margin: 20px 0;
-                    background: #f8f9fa;
-                    padding: 20px;
-                    border-radius: 8px;
-                }}
                 .card {{ 
                     background: #ffffff; 
                     padding: 20px; 
@@ -1536,12 +1529,6 @@ async fn show_dashboard(
         </head>
         <body>
             <h1>Learning Dashboard</h1>
-            
-            <div class="stats">
-                <h2>Progress Statistics</h2>
-                <p>Total Cards Reviewed: {}</p>
-                <p>Total Study Sessions: {}</p>
-            </div>
 
             <div class="weak-topics">
                 <h2>Topics Needing Review</h2>
@@ -1560,9 +1547,7 @@ async fn show_dashboard(
             </a>
         </body>
         </html>
-    "#, 
-    progress.total_cards_reviewed,
-    progress.total_study_sessions,
+    "#,
     state.learning_system.identify_weak_topics()
         .iter()
         .map(|topic| format!("<li>{}</li>", topic))
