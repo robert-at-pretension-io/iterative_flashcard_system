@@ -185,12 +185,21 @@ pub struct CurriculumTopic {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct LearningSystem {
+    #[serde(default = "default_version")]
+    version: u32,
+    #[serde(default)]
     pub goals: Vec<Goal>,
+    #[serde(default)]
     pub cards: Vec<Card>,
+    #[serde(default)]
     pub discussions: Vec<Discussion>,
+    #[serde(default = "default_progress")]
     pub progress: UserProgress,
+    #[serde(default)]
     pub curriculum: Vec<CurriculumModule>,
 }
+
+fn default_version() -> u32 { 1 }
 
 #[derive(Debug)]
 struct LoginAttempt {
