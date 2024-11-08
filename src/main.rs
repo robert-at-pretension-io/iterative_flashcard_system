@@ -140,6 +140,12 @@ pub struct LearningPoint {
     pub mastery_level: f32,  // 0-1 scale indicating understanding
 }
 
+impl std::fmt::Display for LearningPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.content)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Discussion {
     pub id: Uuid,
@@ -730,7 +736,7 @@ Previous Performance: {} reviews, {}% success rate"#,
                     timestamp: Utc::now(),
                     mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
                 })
-                .collect(),
+                .collect::<Vec<LearningPoint>>(),
             timestamp: Utc::now(),
         };
 
@@ -1559,7 +1565,7 @@ async fn handle_answer_submission(
                 discussion.correctness_score * 100.0,
                 discussion.critique,
                 discussion.learning_points.iter()
-                    .map(|point| format!("<div class=\"learning-point\">{}</div>", point))
+                    .map(|point| format!("<div class=\"learning-point\">{}</div>", point.content))
                     .collect::<Vec<_>>()
                     .join("\n"),
                 goal_id
