@@ -400,7 +400,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             refinement_messages,
-            "gpt-4-mini",
+            "gpt-4o-mini",
             Some(0.7),
             Some(100),
         ).await?;
@@ -427,7 +427,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             eval_messages,
-            "gpt-4-mini",
+            "gpt-4o-mini",
             Some(0.3),
             Some(50),
         ).await?;
@@ -453,7 +453,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             card_messages,
-            "gpt-4-mini",
+            "gpt-4o-mini",
             Some(0.7),
             Some(1000),
         ).await?;
