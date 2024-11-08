@@ -255,9 +255,16 @@ impl LearningSystem {
 
     // Interactive Learning
     pub async fn evaluate_response(&mut self, api_key: &str, card_id: Uuid, user_response: &str) -> Result<Discussion, Box<dyn Error>> {
-        let card = self.cards.iter()
-            .find(|c| c.id == card_id)
-            .ok_or("Card not found")?;
+        log!("Starting response evaluation for card {}", card_id);
+        
+        let card = match self.cards.iter()
+            .find(|c| c.id == card_id) {
+                Some(c) => c,
+                None => {
+                    log!("ERROR: Card {} not found", card_id);
+                    return Err("Card not found".into());
+                }
+            };
 
         let messages = vec![
             ChatMessage {
@@ -273,10 +280,19 @@ impl LearningSystem {
             },
         ];
 
-        let discussion = self.generate_evaluation(&api_key, &messages).await?;
-        self.discussions.push(discussion.clone());
-        self.update_statistics(card_id, &discussion);
-        Ok(discussion)
+        log!("Sending evaluation request to OpenAI API");
+        match self.generate_evaluation(&api_key, &messages).await {
+            Ok(discussion) => {
+                log!("Successfully generated evaluation with score: {}", discussion.correctness_score);
+                self.discussions.push(discussion.clone());
+                self.update_statistics(card_id, &discussion);
+                Ok(discussion)
+            },
+            Err(e) => {
+                log!("ERROR: Failed to generate evaluation: {}", e);
+                Err(e)
+            }
+        }
     }
 
     // Progress Tracking
@@ -325,21 +341,43 @@ impl LearningSystem {
             n: Some(1),
         };
 
-        let response = client
+        log!("Sending request to OpenAI API...");
+        let response = match client
             .post("https://api.openai.com/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
             .send()
-            .await?;
+            .await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    log!("ERROR: Failed to send request to OpenAI API: {}", e);
+                    return Err(Box::new(e));
+                }
+            };
+
+        log!("Received response with status: {}", response.status());
 
         if response.status().is_success() {
-            let result: ChatCompletionResponse = response.json().await?;
-            Ok(result)
+            match response.json().await {
+                Ok(result) => {
+                    log!("Successfully parsed API response");
+                    Ok(result)
+                },
+                Err(e) => {
+                    log!("ERROR: Failed to parse API response: {}", e);
+                    Err(Box::new(e))
+                }
+            }
         } else {
-            let error_message = response.text().await?;
+            let error_text = match response.text().await {
+                Ok(text) => text,
+                Err(e) => format!("Could not read error response: {}", e),
+            };
+            log!("ERROR: API request failed with status {}: {}", 
+                response.status(), error_text);
             Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("API request failed: {}", error_message),
+                format!("API request failed ({}): {}", response.status(), error_text),
             )))
         }
     }
@@ -362,7 +400,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             refinement_messages,
-            "gpt-4o-mini",
+            "gpt-4-mini",
             Some(0.7),
             Some(100),
         ).await?;
@@ -389,7 +427,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             eval_messages,
-            "gpt-4o-mini",
+            "gpt-4-mini",
             Some(0.3),
             Some(50),
         ).await?;
@@ -415,7 +453,7 @@ impl LearningSystem {
         let response = self.generate_chat_completion(
             api_key,
             card_messages,
-            "gpt-4o-mini",
+            "gpt-4-mini",
             Some(0.7),
             Some(1000),
         ).await?;
