@@ -601,6 +601,13 @@ impl LearningSystem {
             .find(|g| g.id == goal_id)
             .ok_or("Goal not found")?;
 
+        // Get existing cards for this goal
+        let existing_cards = self.cards.iter()
+            .filter(|c| c.goal_id == goal_id)
+            .map(|c| format!("Q: {}\nA: {}", c.question, c.answer))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
         // Get all relevant curriculum modules
         let curriculum_context = self.curriculum.iter()
             .filter(|module| module.topics.iter().any(|topic| 
@@ -631,7 +638,10 @@ impl LearningSystem {
                 content: format!(
                     r#"You are an expert educational content creator designing flashcards.
 
-For each card, follow this structure:
+Existing cards for this goal (DO NOT duplicate these):
+{}
+
+For each new card, follow this structure:
 1. Question: Clear, specific question that tests one concept
 2. Answer: Concise, complete answer with key points
 3. Context: Supporting information without giving away the answer
@@ -644,6 +654,7 @@ Consider:
 - Curriculum alignment: {}
 
 Generate cards that:
+- Must be different from existing cards
 - Build progressively on mastered concepts
 - Address identified knowledge gaps
 - Reinforce curriculum objectives
@@ -651,7 +662,7 @@ Generate cards that:
 - Ensure questions are unambiguous and testable
 - Include practical applications where relevant
 
-Return exactly 5 cards in this JSON format:
+Return exactly 5 NEW cards in this JSON format:
 {{
     "cards": [
         {{
@@ -663,6 +674,11 @@ Return exactly 5 cards in this JSON format:
         }}
     ]
 }}"#,
+                    if existing_cards.is_empty() {
+                        "No existing cards yet.".to_string()
+                    } else {
+                        existing_cards
+                    },
                     struggling_cards.iter()
                         .map(|c| format!("{} ({}% success)", c.question, (c.success_rate * 100.0) as i32))
                         .collect::<Vec<_>>()
