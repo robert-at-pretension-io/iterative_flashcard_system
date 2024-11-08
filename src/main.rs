@@ -745,8 +745,16 @@ Format your entire response as a valid JSON array of these objects."#;
             Some(1000),
         ).await?;
 
-        let cards_json: Vec<serde_json::Value> = serde_json::from_str(&response.choices[0].message.content)?;
-        
+        // Clean up the response content by removing markdown code block markers
+        let content = response.choices[0].message.content.replace("```json", "")
+            .replace("```", "")
+            .trim()
+            .to_string();
+
+        log!("Cleaned JSON content: {}", content);
+
+        let cards_json: Vec<serde_json::Value> = serde_json::from_str(&content)?;
+    
         let cards = cards_json.into_iter().map(|card_json| {
             Card {
                 id: Uuid::new_v4(),
