@@ -1211,13 +1211,13 @@ async fn show_practice_session(
     Path(goal_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
     // Clone the learning system
-    let mut learning_system = {
+    let learning_system = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         state.learning_system.clone()
     };
     
     // Generate practice cards using cloned system
-    let practice_cards = learning_system.generate_practice_session(goal_id, 30).await
+    let practice_cards = learning_system.clone().generate_practice_session(goal_id, 30).await
         .map_err(|e| AppError::SystemError(e.to_string()))?;
     
     // Update the original state
