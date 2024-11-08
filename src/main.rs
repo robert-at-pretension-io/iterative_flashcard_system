@@ -5,6 +5,13 @@ use axum::{
     Router,
     http::StatusCode,
 };
+
+macro_rules! log {
+    ($($arg:tt)*) => {{
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+        println!("[{}] {}", timestamp, format!($($arg)*));
+    }};
+}
 #[derive(Debug)]
 enum AppError {
     SystemError(String),
@@ -184,6 +191,8 @@ impl LearningSystem {
 
     // Goal Discovery Phase
     pub async fn discover_goal(&mut self, api_key: &str, initial_topic: &str) -> Result<Goal, Box<dyn Error>> {
+        log!("Starting goal discovery for topic: {}", initial_topic);
+        
         let mut messages = vec![
             ChatMessage {
                 role: "system".to_string(),
@@ -194,6 +203,7 @@ impl LearningSystem {
                 content: format!("I want to learn about: {}", initial_topic),
             },
         ];
+        log!("Created initial messages for goal discovery");
 
         let mut goal = Goal {
             id: Uuid::new_v4(),
@@ -302,6 +312,9 @@ impl LearningSystem {
         temperature: Option<f32>,
         max_tokens: Option<u32>,
     ) -> Result<ChatCompletionResponse, Box<dyn Error>> {
+        log!("Starting chat completion request to OpenAI API");
+        log!("Using model: {}", model);
+        
         let client = Client::new();
         let request = ChatCompletionRequest {
             model: model.to_string(),
@@ -759,14 +772,29 @@ async fn handle_goal_creation(
     State(state): State<Arc<Mutex<AppState>>>,
     Form(form): Form<GoalForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
+    log!("Starting goal creation for topic: {}", form.topic);
+
+    let api_key = match std::env::var("OPENAI_API_KEY") {
+        Ok(key) => {
+            log!("Successfully retrieved API key");
+            key
+        },
+        Err(e) => {
+            log!("ERROR: Failed to get API key: {}", e);
+            return Err(AppError::SystemError("API key not found".to_string()));
+        }
+    };
 
     // Clone the learning system
     let mut learning_system = {
-        let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        log!("Acquiring state lock for system clone");
+        let state = state.lock().map_err(|e| {
+            log!("ERROR: Failed to acquire lock: {}", e);
+            AppError::SystemError("Lock error".to_string())
+        })?;
         state.learning_system.clone()
     };
+    log!("Successfully cloned learning system");
 
     // Discover goal using the cloned system
     let goal = learning_system.discover_goal(&api_key, &form.topic)
@@ -896,11 +924,24 @@ async fn show_study_page(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    log!("Starting Iterative Flashcard System");
+    
     // Initialize system
-    let _api_key = std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set");
+    let api_key = match std::env::var("OPENAI_API_KEY") {
+        Ok(key) => {
+            log!("Successfully loaded API key from environment");
+            key
+        },
+        Err(e) => {
+            log!("ERROR: Failed to load API key: {}", e);
+            return Err(Box::new(e));
+        }
+    };
+    
+    log!("Initializing learning system");
     let system = LearningSystem::new();
     
-    // Create password hash (change 'your_password_here' to your desired password)
+    log!("Creating password hash");
     let password_hash = hash("your_password_here", DEFAULT_COST)?;
 
     // Create shared state
