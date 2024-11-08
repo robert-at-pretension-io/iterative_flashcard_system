@@ -1210,15 +1210,18 @@ async fn show_practice_session(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Clone the learning system
-    let learning_system = {
+    // First get a clone of the learning system
+    let mut learning_system = {
         let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
         state.learning_system.clone()
     };
     
-    // Generate practice cards using cloned system
-    let practice_cards = learning_system.clone().generate_practice_session(goal_id, 30).await
+    // Generate practice cards and store them
+    let practice_cards = learning_system.generate_practice_session(goal_id, 30).await
         .map_err(|e| AppError::SystemError(e.to_string()))?;
+    
+    // Convert cards to owned values to avoid lifetime issues
+    let owned_cards: Vec<Card> = practice_cards.into_iter().cloned().collect();
     
     // Update the original state
     {
@@ -1284,7 +1287,6 @@ async fn show_practice_session(
             </div>
 
             <script>
-                // Update progress as cards are completed
                 let totalCards = {};
                 let completedCards = 0;
                 
@@ -1297,7 +1299,7 @@ async fn show_practice_session(
         </body>
         </html>
     "#,
-        practice_cards.iter().map(|card| format!(r#"
+        owned_cards.iter().map(|card| format!(r#"
             <div class="card">
                 <h3>{}</h3>
                 <p><strong>Context:</strong> {}</p>
@@ -1318,7 +1320,7 @@ async fn show_practice_session(
             goal_id,
             card.id
         )).collect::<Vec<_>>().join("\n"),
-        practice_cards.len()
+        owned_cards.len()
     )))
 }
 
