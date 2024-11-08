@@ -689,27 +689,69 @@ async fn show_dashboard(
             <title>Learning Dashboard</title>
             <style>
                 body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                .stats {{ margin: 20px 0; }}
-                .card {{ background: #f5f5f5; padding: 20px; margin: 10px 0; }}
+                .stats {{ 
+                    margin: 20px 0;
+                    background: #f8f9fa;
+                    padding: 20px;
+                    border-radius: 8px;
+                }}
+                .card {{ 
+                    background: #ffffff; 
+                    padding: 20px; 
+                    margin: 10px 0; 
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    border: 1px solid #dee2e6;
+                }}
+                .card h3 {{ margin-top: 0; }}
+                .status-badge {{
+                    display: inline-block;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 0.8em;
+                    margin-left: 10px;
+                }}
+                .status-active {{ background: #28a745; color: white; }}
+                .status-discovery {{ background: #ffc107; color: black; }}
+                .status-completed {{ background: #6c757d; color: white; }}
+                .action-button {{
+                    display: inline-block;
+                    padding: 8px 16px;
+                    background: #007bff;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    margin-top: 10px;
+                }}
+                .new-goal-button {{
+                    display: inline-block;
+                    padding: 12px 24px;
+                    background: #28a745;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    margin-top: 20px;
+                    font-weight: bold;
+                }}
             </style>
         </head>
         <body>
             <h1>Learning Dashboard</h1>
+            
             <div class="stats">
                 <h2>Progress Statistics</h2>
                 <p>Total Cards Reviewed: {}</p>
                 <p>Total Study Sessions: {}</p>
             </div>
+
             <div class="goals">
-                <h2>Active Goals</h2>
+                <h2>Your Learning Goals</h2>
                 {}
             </div>
-            <div class="actions" style="margin-top: 20px;">
-                <h2>Actions</h2>
-                <a href="/goals/new" style="display: inline-block; padding: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 4px;">
-                    Create New Learning Goal
-                </a>
-            </div>
+
+            <a href="/goals/new" class="new-goal-button">
+                + Create New Learning Goal
+            </a>
         </body>
         </html>
     "#, 
@@ -717,11 +759,45 @@ async fn show_dashboard(
     progress.total_study_sessions,
     state.learning_system.goals
         .iter()
-        .map(|g| format!(
-            r#"<div class="card"><h3>{}</h3><p>Status: {:?}</p></div>"#,
+        .map(|g| {
+            let status_class = match g.status {
+                GoalStatus::Active => "status-active",
+                GoalStatus::Discovery => "status-discovery",
+                GoalStatus::Completed => "status-completed",
+                GoalStatus::Archived => "status-completed",
+            };
+            
+            let status_text = format!("{:?}", g.status);
+            
+            format!(r#"
+                <div class="card">
+                    <h3>
+                        {}
+                        <span class="status-badge {}">{}</span>
+                    </h3>
+                    <p><strong>Tags:</strong> {}</p>
+                    <div>
+                        <strong>Success Criteria:</strong>
+                        <ul>
+                            {}
+                        </ul>
+                    </div>
+                    <a href="/study/{}" class="action-button">
+                        Continue Studying
+                    </a>
+                </div>
+            "#,
             g.description,
-            g.status
-        ))
+            status_class,
+            status_text,
+            g.tags.join(", "),
+            g.criteria.iter()
+                .map(|c| format!("<li>{}</li>", c))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            g.id
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n")
     ))
