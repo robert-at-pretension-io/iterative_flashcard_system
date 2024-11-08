@@ -35,7 +35,7 @@ impl IntoResponse for AppError {
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
-use chrono::{DateTime, Utc};
+use chrono::{Date, DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -83,7 +83,7 @@ pub enum GoalStatus {
     Archived,           // No longer active
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SpacedRepetitionInfo {
     pub last_reviewed: DateTime<Utc>,
     pub next_review: DateTime<Utc>,
@@ -92,8 +92,7 @@ pub struct SpacedRepetitionInfo {
     pub consecutive_correct: i32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq,Debug)]
 pub struct Card {
     pub id: Uuid,
     pub goal_id: Uuid,
@@ -107,6 +106,7 @@ pub struct Card {
     pub success_rate: f32,
     pub spaced_rep: SpacedRepetitionInfo,
     pub prerequisites: Vec<Uuid>,  // Cards that should be learned first
+    pub last_reviewed: Option<DateTime<Utc>>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -734,6 +734,7 @@ Format your entire response as a valid JSON array of these objects."#;
                     consecutive_correct: 0,
                 },
                 prerequisites: Vec::new(),
+                last_reviewed: None
             }
         }).collect();
 
@@ -1486,14 +1487,6 @@ async fn main() {
         .route("/study/:goal_id/submit/:card_id", post(handle_answer_submission))
         .route("/curriculum/:goal_id", post(update_curriculum))
         .route("/due-cards", get(get_due_cards))
-
-async fn get_due_cards(
-    State(state): State<Arc<Mutex<AppState>>>,
-) -> Result<impl IntoResponse, AppError> {
-    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
-    let due_cards = state.learning_system.get_due_cards();
-    Ok(Json(due_cards))
-}
         .route("/knowledge-graph/:goal_id", get(show_knowledge_graph))
         .with_state(state);
 
