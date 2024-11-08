@@ -580,35 +580,59 @@ impl LearningSystem {
             ChatMessage {
                 role: "system".to_string(),
                 content: format!(
-                    "You are creating targeted flashcards for a learning goal. Focus on:\n\
-                    1. Areas where the student has shown difficulty\n\
-                    2. Topics that connect to their recent learning points\n\
-                    3. Progressive difficulty building on mastered concepts\n\
-                    4. Alignment with curriculum objectives"
+                    r#"You are an expert educational content creator designing flashcards.
+
+For each card, follow this structure:
+1. Question: Clear, specific question that tests one concept
+2. Answer: Concise, complete answer with key points
+3. Context: Supporting information without giving away the answer
+4. Difficulty: Assign 1-5 based on concept complexity and prerequisites
+5. Tags: Relevant topic tags for categorization
+
+Consider:
+- Student's weak areas: {}
+- Recent learning points: {}
+- Current mastery level: {}
+- Curriculum alignment: {}
+
+Generate cards that:
+- Build progressively on mastered concepts
+- Address identified knowledge gaps
+- Reinforce curriculum objectives
+- Use varied question types (recall, application, analysis)
+- Ensure questions are unambiguous and testable
+- Include practical applications where relevant
+
+Return exactly 5 cards in this JSON format:
+{{
+    "cards": [
+        {{
+            "question": "string",
+            "answer": "string",
+            "context": "string",
+            "difficulty": number,
+            "tags": ["string"]
+        }}
+    ]
+}}"#,
+                    struggling_cards.iter()
+                        .map(|c| format!("{} ({}% success)", c.question, (c.success_rate * 100.0) as i32))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    recent_learning_points.iter()
+                        .map(|lp| format!("{} (mastery: {})", lp.content, lp.mastery_level))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    // Calculate average mastery across topics
+                    curriculum_context.iter()
+                        .map(|m| format!("Module: {} - {}", m.title, m.description))
+                        .collect::<Vec<_>>()
+                        .join("\n")
                 ),
             },
             ChatMessage {
                 role: "user".to_string(),
-                content: format!(
-                    "Goal: {}\n\n\
-                    Curriculum Context:\n{}\n\n\
-                    Recent Learning Points (Last 30 days):\n{}\n\n\
-                    Struggling Areas:\n{}\n\n\
-                    Generate flashcards that address these specific challenges while following the curriculum progression.",
-                    goal.description,
-                    curriculum_context.iter()
-                        .map(|m| format!("Module: {}\n{}", m.title, m.description))
-                        .collect::<Vec<_>>()
-                        .join("\n\n"),
-                    recent_learning_points.iter()
-                        .map(|lp| format!("- {} (Mastery: {:.1})", lp.content, lp.mastery_level))
-                        .collect::<Vec<_>>()
-                        .join("\n"),
-                    struggling_cards.iter()
-                        .map(|c| format!("- {} (Success Rate: {:.1}%)", c.question, c.success_rate * 100.0))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                ),
+                content: format!("Generate flashcards for this learning goal: {}", goal.description),
             },
         ];
 
@@ -633,21 +657,51 @@ impl LearningSystem {
         let messages = vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: "Evaluate the response and provide specific learning points with mastery levels.".to_string(),
+                content: format!(
+                    r#"You are an expert educational evaluator providing detailed feedback on student responses.
+
+Evaluate the response considering:
+1. Accuracy: Correctness of key concepts and details
+2. Completeness: Coverage of all required elements
+3. Understanding: Depth of conceptual grasp
+4. Application: Ability to apply concepts correctly
+
+Provide feedback in this JSON format:
+{{
+    "score": number (0.0-1.0),
+    "critique": {{
+        "strengths": ["string"],
+        "areas_for_improvement": ["string"],
+        "misconceptions": ["string"]
+    }},
+    "learning_points": [
+        {{
+            "content": "string - specific point of learning",
+            "mastery": number (0.0-1.0),
+            "improvement_suggestion": "string"
+        }}
+    ],
+    "next_steps": ["string - specific actions to improve understanding"]
+}}
+
+Be specific, constructive, and actionable in your feedback.
+Focus on guiding improvement rather than just pointing out errors."#
+                ),
             },
             ChatMessage {
-                role: "user".to_string(),
+                role: "user".to_string",
                 content: format!(
-                    "Question: {}\nCorrect Answer: {}\nUser Response: {}\nContext: {}\n\n\
-                    Return a JSON object with these properties:\n\
-                    {\n\
-                      \"score\": number (0-1),\n\
-                      \"critique\": \"detailed feedback\",\n\
-                      \"learning_points\": [\n\
-                        { \"content\": \"specific point\", \"mastery\": number (0-1) }\n\
-                      ]\n\
-                    }",
-                    card.question, card.answer, user_response, card.context
+                    r#"Question: {}
+Correct Answer: {}
+User Response: {}
+Context: {}
+Previous Performance: {} reviews, {}% success rate"#,
+                    card.question,
+                    card.answer,
+                    user_response,
+                    card.context,
+                    card.review_count,
+                    (card.success_rate * 100.0) as i32
                 ),
             },
         ];
