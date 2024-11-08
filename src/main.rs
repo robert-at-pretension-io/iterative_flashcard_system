@@ -1682,7 +1682,7 @@ async fn show_study_page(
                 <a href="/practice/{}" class="practice-btn">Start 30-min Practice Session</a>
             </div>
             
-            <h1>{}</h1>
+            <h1>Welcome</h1>
             <p><strong>Goal:</strong> {}</p>
             
             <div class="cards">
@@ -1691,7 +1691,6 @@ async fn show_study_page(
         </body>
         </html>
     "#,
-        goal.description,
         goal_id,
         goal.description,
         cards.iter().map(|card| format!(r#"
