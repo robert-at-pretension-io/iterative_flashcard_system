@@ -328,7 +328,7 @@ impl LearningSystem {
         Ok(())
     }
 
-    async fn generate_practice_session(&self, goal_id: Uuid, duration_minutes: u32) -> Result<Vec<&Card>, Box<dyn Error>> {
+    async fn generate_practice_session(&mut self, goal_id: Uuid, duration_minutes: u32) -> Result<Vec<&Card>, Box<dyn Error>> {
         let mut available_time = duration_minutes;
         let mut session_cards = Vec::new();
         let now = Utc::now();
@@ -1210,16 +1210,22 @@ async fn show_practice_session(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, AppError> {
-    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    // Generate practice cards
+    let practice_cards = {
+        let mut state_guard = state.lock()
+            .map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        
+        state_guard.learning_system.generate_practice_session(goal_id, 30).await
+            .map_err(|e| AppError::SystemError(e.to_string()))?
+    };
     
-    // Generate a 30-minute practice session
-    let practice_cards = state.learning_system.generate_practice_session(goal_id, 30)
-        .await
-        .map_err(|e| AppError::SystemError(e.to_string()))?;
-    
-    // Save state if new cards were generated
-    if let Err(e) = state.learning_system.save("learning_system.json") {
-        log!("Error saving learning system after generating new cards: {}", e);
+    // Save state after generating cards
+    {
+        let mut state_guard = state.lock()
+            .map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+        if let Err(e) = state_guard.learning_system.save("learning_system.json") {
+            log!("Error saving learning system after generating new cards: {}", e);
+        }
     }
     
     Ok(Html(format!(r#"
