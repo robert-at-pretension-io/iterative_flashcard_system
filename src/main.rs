@@ -774,7 +774,7 @@ async fn handle_goal_creation(
 ) -> Result<impl IntoResponse, AppError> {
     log!("Starting goal creation for topic: {}", form.topic);
 
-    let api_key = match std::env::var("OPENAI_API_KEY") {
+    let _api_key = match std::env::var("OPENAI_API_KEY") {
         Ok(key) => {
             log!("Successfully retrieved API key");
             key
@@ -940,7 +940,16 @@ async fn main() {
     };
     
     log!("Initializing learning system");
-    let system = LearningSystem::new();
+    let system = match LearningSystem::load("learning_system.json") {
+        Ok(loaded_system) => {
+            log!("Successfully loaded existing learning system data");
+            loaded_system
+        },
+        Err(e) => {
+            log!("Could not load existing data ({}), starting with new system", e);
+            LearningSystem::new()
+        }
+    };
     
     log!("Creating password hash");
     let password_hash = match hash("your_password_here", DEFAULT_COST) {
