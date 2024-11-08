@@ -748,13 +748,14 @@ Previous Performance: {} reviews, {}% success rate"#,
             user_response: user_response.to_string(),
             correctness_score: eval["score"].as_f64().unwrap_or(0.0) as f32,
             critique: eval["critique"].as_str().unwrap_or("").to_string(),
-            learning_points: eval["learning_points"].as_array()
+            learning_points: eval["learning_points"]
+                .as_array()
                 .unwrap_or(&Vec::new())
                 .iter()
                 .map(|point| LearningPoint {
-                    content: point.as_str().unwrap_or("").to_string(),
+                    content: point["content"].as_str().unwrap_or("").to_string(),
                     timestamp: Utc::now(),
-                    mastery_level: 0.0,
+                    mastery_level: point["mastery"].as_f64().unwrap_or(0.0) as f32,
                 })
                 .collect(),
             timestamp: Utc::now(),
@@ -930,13 +931,14 @@ Format your response as simple text with one criterion per line."#
         api_key: &str,
         messages: &[ChatMessage],
     ) -> Result<Vec<Card>, Box<dyn Error>> {
-        let prompt = r#"Create 5 flashcards for this learning goal. Not that the context will be shown to the user so it shouldn't give away the answer.
+        let prompt = r#"Create 5 flashcards for this learning goal. Note that the context will be shown to the user so it shouldn't give away the answer.
 Return a JSON array where each card has the following properties:
 {
     "question": "string - The question to ask",
     "answer": "string - The complete correct answer",
     "context": "string - Additional explanation or context for the topic",
-    "difficulty": "number (1-5) - The difficulty level of the card"
+    "difficulty": "number (1-5) - The difficulty level of the card",
+    "tags": ["string - Topic tags"]
 }
 Format your entire response as a valid JSON array of these objects."#;
 
@@ -949,7 +951,7 @@ Format your entire response as a valid JSON array of these objects."#;
         let response = self.generate_chat_completion(
             api_key,
             card_messages,
-            "gpt-4o-mini",
+            "gpt-4",
             Some(0.7),
             Some(1000),
         ).await?;
@@ -962,31 +964,40 @@ Format your entire response as a valid JSON array of these objects."#;
 
         log!("Cleaned JSON content: {}", content);
 
-        let cards_json: Vec<serde_json::Value> = serde_json::from_str(&content)?;
-    
-        let cards = cards_json.into_iter().map(|card_json| {
-            Card {
-                id: Uuid::new_v4(),
-                goal_id: self.goals.last().unwrap().id, // Link to the current goal
-                question: card_json["question"].as_str().unwrap_or("").to_string(),
-                answer: card_json["answer"].as_str().unwrap_or("").to_string(),
-                context: card_json["context"].as_str().unwrap_or("").to_string(),
-                difficulty: card_json["difficulty"].as_u64().unwrap_or(3) as u8,
-                tags: self.goals.last().unwrap().tags.clone(),
-                created_at: Utc::now(),
-                review_count: 0,
-                success_rate: 0.0,
-                spaced_rep: SpacedRepetitionInfo {
-                    last_reviewed: Utc::now(),
-                    next_review: Utc::now(),
-                    interval: 1,
-                    ease_factor: 2.5,
-                    consecutive_correct: 0,
-                },
-                prerequisites: Vec::new(),
-                last_reviewed: None
-            }
-        }).collect();
+        let eval_json: serde_json::Value = serde_json::from_str(&content)?;
+        
+        let cards = eval_json.as_array()
+            .ok_or("Invalid JSON response format")?
+            .iter()
+            .map(|card_json| {
+                Card {
+                    id: Uuid::new_v4(),
+                    goal_id: self.goals.last().unwrap().id,
+                    question: card_json["question"].as_str().unwrap_or("").to_string(),
+                    answer: card_json["answer"].as_str().unwrap_or("").to_string(),
+                    context: card_json["context"].as_str().unwrap_or("").to_string(),
+                    difficulty: card_json["difficulty"].as_u64().unwrap_or(3) as u8,
+                    tags: card_json["tags"].as_array()
+                        .map(|tags| tags.iter()
+                            .filter_map(|t| t.as_str())
+                            .map(|s| s.to_string())
+                            .collect())
+                        .unwrap_or_else(|| self.goals.last().unwrap().tags.clone()),
+                    created_at: Utc::now(),
+                    review_count: 0,
+                    success_rate: 0.0,
+                    spaced_rep: SpacedRepetitionInfo {
+                        last_reviewed: Utc::now(),
+                        next_review: Utc::now(),
+                        interval: 1,
+                        ease_factor: 2.5,
+                        consecutive_correct: 0,
+                    },
+                    prerequisites: Vec::new(),
+                    last_reviewed: None
+                }
+            })
+            .collect();
 
         Ok(cards)
     }
