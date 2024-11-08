@@ -656,9 +656,7 @@ async fn handle_answer_submission(
                 goal_id
             )))
         }
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
+
 
 async fn show_dashboard(
     State(state): State<Arc<Mutex<AppState>>>,
