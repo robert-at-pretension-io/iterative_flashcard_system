@@ -920,6 +920,198 @@ async fn handle_login(
 }
 
 #[axum::debug_handler]
+async fn show_practice_session(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path(goal_id): Path<Uuid>,
+) -> Result<impl IntoResponse, AppError> {
+    let state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    // Generate a 30-minute practice session
+    let practice_cards = state.learning_system.generate_practice_session(goal_id, 30);
+    
+    Ok(Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Practice Session</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .card {{ 
+                    background: #f8f9fa; 
+                    padding: 20px; 
+                    margin: 20px 0; 
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .progress-bar {{
+                    background: #e9ecef;
+                    height: 20px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                }}
+                .progress {{
+                    background: #007bff;
+                    height: 100%;
+                    border-radius: 10px;
+                    width: 0%;
+                    transition: width 0.5s;
+                }}
+                .answer-form {{ margin: 15px 0; }}
+                .answer-input {{ 
+                    width: 100%; 
+                    min-height: 100px; 
+                    margin: 10px 0; 
+                    padding: 8px;
+                }}
+                .submit-btn {{ 
+                    background: #007bff; 
+                    color: white; 
+                    border: none;
+                    padding: 10px 20px;
+                    cursor: pointer;
+                    border-radius: 4px;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>Practice Session</h1>
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            
+            <div class="cards">
+                {}
+            </div>
+
+            <script>
+                // Update progress as cards are completed
+                let totalCards = {};
+                let completedCards = 0;
+                
+                function updateProgress() {{
+                    completedCards++;
+                    let progress = (completedCards / totalCards) * 100;
+                    document.getElementById('progress').style.width = progress + '%';
+                }}
+            </script>
+        </body>
+        </html>
+    "#,
+        practice_cards.iter().map(|card| format!(r#"
+            <div class="card">
+                <h3>{}</h3>
+                <p><strong>Context:</strong> {}</p>
+                <form class="answer-form" action="/practice/{}/submit/{}" method="POST" 
+                      onsubmit="updateProgress()">
+                    <textarea 
+                        class="answer-input" 
+                        name="user_answer" 
+                        placeholder="Type your answer here..."
+                        required
+                    ></textarea>
+                    <button type="submit" class="submit-btn">Submit Answer</button>
+                </form>
+            </div>
+        "#,
+            card.question,
+            card.context,
+            goal_id,
+            card.id
+        )).collect::<Vec<_>>().join("\n"),
+        practice_cards.len()
+    )))
+}
+
+async fn handle_practice_submission(
+    State(state): State<Arc<Mutex<AppState>>>,
+    Path((goal_id, card_id)): Path<(Uuid, Uuid)>,
+    Form(form): Form<AnswerSubmission>,
+) -> Result<impl IntoResponse, AppError> {
+    let api_key = std::env::var("OPENAI_API_KEY")
+        .map_err(|_| AppError::SystemError("API key not found".to_string()))?;
+
+    let mut state = state.lock().map_err(|_| AppError::SystemError("Lock error".to_string()))?;
+    
+    // Get performance history for the card
+    let performance_history: Vec<f32> = state.learning_system.discussions.iter()
+        .filter(|d| d.card_id == card_id)
+        .map(|d| d.correctness_score)
+        .collect();
+
+    // Adjust card difficulty based on performance
+    if let Err(e) = state.learning_system.adjust_card_difficulty(card_id, &performance_history) {
+        log!("Error adjusting card difficulty: {}", e);
+    }
+
+    // Evaluate the response
+    let discussion = state.learning_system.evaluate_response(&api_key, card_id, &form.user_answer)
+        .await
+        .map_err(|e| AppError::SystemError(e.to_string()))?;
+
+    // Update spaced repetition info
+    if let Some(card) = state.learning_system.cards.iter_mut().find(|c| c.id == card_id) {
+        card.spaced_rep = state.learning_system.calculate_next_review(card, discussion.correctness_score);
+    }
+
+    // Save changes
+    if let Err(e) = state.learning_system.save("learning_system.json") {
+        log!("Error saving state: {}", e);
+    }
+
+    Ok(Html(format!(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Practice Feedback</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                .feedback {{ 
+                    background: #f8f9fa; 
+                    padding: 20px; 
+                    border-radius: 8px;
+                    margin: 20px 0;
+                }}
+                .score {{ 
+                    font-size: 1.2em; 
+                    font-weight: bold; 
+                    color: {}; 
+                }}
+                .next-btn {{
+                    display: inline-block;
+                    padding: 10px 20px;
+                    background: #007bff;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    margin-top: 20px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="feedback">
+                <div class="score">Score: {:.1}%</div>
+                <h3>Feedback:</h3>
+                <p>{}</p>
+                <h3>Key Points:</h3>
+                <ul>
+                    {}
+                </ul>
+            </div>
+            <a href="/practice/{}" class="next-btn">Next Card</a>
+        </body>
+        </html>
+    "#,
+        if discussion.correctness_score >= 0.8 { "#28a745" } else { "#dc3545" },
+        discussion.correctness_score * 100.0,
+        discussion.critique,
+        discussion.learning_points.iter()
+            .map(|point| format!("<li>{}</li>", point))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        goal_id
+    )))
+}
+
 async fn show_knowledge_graph(
     State(state): State<Arc<Mutex<AppState>>>,
     Path(goal_id): Path<Uuid>,
@@ -1211,6 +1403,13 @@ async fn show_dashboard(
                 <p>Total Study Sessions: {}</p>
             </div>
 
+            <div class="weak-topics">
+                <h2>Topics Needing Review</h2>
+                <ul>
+                    {}
+                </ul>
+            </div>
+
             <div class="goals">
                 <h2>Your Learning Goals</h2>
                 {}
@@ -1224,6 +1423,11 @@ async fn show_dashboard(
     "#, 
     progress.total_cards_reviewed,
     progress.total_study_sessions,
+    state.learning_system.identify_weak_topics()
+        .iter()
+        .map(|topic| format!("<li>{}</li>", topic))
+        .collect::<Vec<_>>()
+        .join("\n"),
     state.learning_system.goals
         .iter()
         .map(|g| {
@@ -1447,6 +1651,7 @@ async fn show_study_page(
         <body>
             <div class="nav-bar">
                 <a href="/dashboard">← Back to Dashboard</a>
+                <a href="/practice/{}" class="practice-btn">Start 30-min Practice Session</a>
             </div>
             
             <h1>{}</h1>
@@ -1546,6 +1751,8 @@ async fn main() {
         .route("/curriculum/:goal_id", post(update_curriculum))
         .route("/due-cards", get(get_due_cards))
         .route("/knowledge-graph/:goal_id", get(show_knowledge_graph))
+        .route("/practice/:goal_id", get(show_practice_session))
+        .route("/practice/:goal_id/submit/:card_id", post(handle_practice_submission))
         .with_state(state);
 
     log!("Starting server on http://localhost:3000");
