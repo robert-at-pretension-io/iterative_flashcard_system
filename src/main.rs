@@ -868,46 +868,17 @@ Previous Performance: {} reviews, {}% success rate"#,
         messages: &[ChatMessage],
     ) -> Result<ChatMessage, Box<dyn Error>> {
         let prompt = format!(
-            r#"You are an expert learning advisor helping to define specific, measurable learning goals.
+            r#"You are helping to refine a learning goal.
+Based on the user's response, suggest 2-3 specific, measurable criteria for success.
 
-Current Goal: {}
-Current Progress: {}
-Learning Context: {}
+Please analyze the previous messages and return ONLY new criteria, one per line.
+Each criterion should be:
+1. Specific and measurable
+2. Achievable within a reasonable timeframe
+3. Relevant to the learning goal
+4. Clear enough to create flashcards from
 
-Help refine this goal by:
-1. Making it more specific and measurable
-2. Breaking it into clear success criteria
-3. Identifying prerequisite knowledge
-4. Suggesting practical applications
-
-Return feedback in this JSON format:
-{{
-    "refined_goal": "string - clearer version of the goal",
-    "success_criteria": [
-        {{
-            "criterion": "string - specific, measurable outcome",
-            "measurement": "string - how to assess achievement",
-            "difficulty": number (1-5)
-        }}
-    ],
-    "prerequisites": ["string"],
-    "suggested_milestones": ["string"],
-    "practical_applications": ["string"]
-}}
-
-Focus on making the goal SMART:
-- Specific: Clear and unambiguous
-- Measurable: Quantifiable progress/success
-- Achievable: Realistic given current level
-- Relevant: Connected to broader learning objectives
-- Time-bound: Can be achieved in reasonable timeframe"#,
-            goal.description,
-            goal.criteria.join("\n"),
-            // Add relevant context from curriculum if available
-            curriculum_context.iter()
-                .map(|m| format!("{}: {}", m.title, m.description))
-                .collect::<Vec<_>>()
-                .join("\n")
+Format your response as simple text with one criterion per line."#
         );
 
         let mut refinement_messages = messages.to_vec();
@@ -919,9 +890,9 @@ Focus on making the goal SMART:
         let response = self.generate_chat_completion(
             api_key,
             refinement_messages,
-            "gpt-4o-mini",
+            "gpt-4",
             Some(0.7),
-            Some(100),
+            Some(500),
         ).await?;
 
         Ok(response.choices[0].message.clone())
