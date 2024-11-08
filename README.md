@@ -15,16 +15,16 @@ An intelligent flashcard system that uses AI to help create and manage personali
 ## Prerequisites
 
 - Rust (1.70 or later)
-- OpenAI API key (GPT-4 access recommended)
+- OpenAI API key (gpt-4o-mini access recommended)
 - 512MB RAM minimum
 - 1GB free disk space
-- Internet connection (1Mbps minimum)
+- Internet connection 
 
 ## Quick Start
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/iterative-flashcard-system.git
+git clone https://github.com/robert-at-pretension-io/iterative_flashcard_system
 cd iterative-flashcard-system
 ```
 
@@ -52,26 +52,7 @@ cargo run --release
 http://localhost:3000
 ```
 
-Default login: `your_password_here`
-
-## Development Setup
-
-1. Install development dependencies:
-```bash
-rustup component add clippy rustfmt
-cargo install cargo-audit cargo-watch
-```
-
-2. Run tests:
-```bash
-cargo test
-cargo clippy
-```
-
-3. Auto-format code:
-```bash
-cargo fmt
-```
+Default password: `your_password_here`
 
 ## Project Structure
 
@@ -94,41 +75,6 @@ For development:
 let password_hash = hash("your_new_password_here", DEFAULT_COST);
 ```
 
-For production, use environment variables:
-```bash
-export IFS_PASSWORD='your-secure-password'
-```
-
-### Server Configuration
-
-Default port: 3000
-To change:
-```bash
-export IFS_PORT=8080
-```
-
-## Security Considerations
-
-For production deployment:
-
-1. Environment Variables
-   - Store sensitive data (API keys, passwords) in env vars
-   - Use `.env` files for development only
-
-2. HTTPS Setup
-   - Generate SSL certificate
-   - Configure reverse proxy (nginx recommended)
-   - Enable HTTP/2
-
-3. Session Management
-   - Implement JWT tokens
-   - Set secure cookie attributes
-   - Configure CSRF protection
-
-4. Rate Limiting
-   - Login attempts: 3 per 30 minutes
-   - API requests: 100 per minute
-   - Study sessions: Unlimited
 
 ## Troubleshooting
 
@@ -149,13 +95,6 @@ For production deployment:
    - Verify Rust version
    - Clear target directory: `cargo clean`
 
-## Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
 
 ### Code Style
 
@@ -170,12 +109,10 @@ MIT License - see [LICENSE](LICENSE) for details
 
 ## Support
 
-- GitHub Issues: Bug reports and feature requests
-- Discussions: General questions and community support
-- Email: support@example.com
+- good luck
 
 ## Acknowledgments
 
 - OpenAI for GPT API
 - Rust community
-- All contributors
+- http://aider.chat
