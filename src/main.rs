@@ -139,7 +139,6 @@ pub struct UserProgress {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CurriculumModule {
     pub id: Uuid,
     pub title: String,
@@ -367,8 +366,35 @@ impl LearningSystem {
         KnowledgeGraphData { nodes, edges }
     }
 
-    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {
-
+    fn calculate_next_review(&self, card: &Card, performance: f32) -> SpacedRepetitionInfo {                     
+        let mut spaced_rep = card.spaced_rep.clone();                                                            
+                                                                                                                 
+        // SuperMemo 2 algorithm                                                                                 
+        if performance >= 0.8 {                                                                                  
+            spaced_rep.consecutive_correct += 1;                                                                 
+            if spaced_rep.consecutive_correct == 1 {                                                             
+                spaced_rep.interval = 1;                                                                         
+            } else if spaced_rep.consecutive_correct == 2 {                                                      
+                spaced_rep.interval = 6;                                                                         
+            } else {                                                                                             
+                spaced_rep.interval = ((spaced_rep.interval as f32) * spaced_rep.ease_factor) as i32;            
+            }                                                                                                    
+            spaced_rep.ease_factor = spaced_rep.ease_factor + 0.1;                                               
+        } else {                                                                                                 
+            spaced_rep.consecutive_correct = 0;                                                                  
+            spaced_rep.interval = 1;                                                                             
+            spaced_rep.ease_factor = spaced_rep.ease_factor - 0.2;                                               
+        }                                                                                                        
+                                                                                                                 
+        // Ensure bounds                                                                                         
+        spaced_rep.ease_factor = spaced_rep.ease_factor.max(1.3);                                                
+        spaced_rep.interval = spaced_rep.interval.max(1);                                                        
+                                                                                                                 
+        spaced_rep.last_reviewed = Utc::now();                                                                   
+        spaced_rep.next_review = Utc::now() + chrono::Duration::days(spaced_rep.interval as i64);                
+                                                                                                                 
+        spaced_rep                                                                                               
+    }   
     pub fn get_due_cards(&self) -> Vec<&Card> {
         self.cards.iter()
             .filter(|card| {
@@ -397,6 +423,7 @@ impl LearningSystem {
                 completed_goals: Vec::new(),
                 last_session: None,
             },
+            curriculum: todo!(),
         }
     }
 
@@ -695,9 +722,10 @@ Format your entire response as a valid JSON array of these objects."#;
                 difficulty: card_json["difficulty"].as_u64().unwrap_or(3) as u8,
                 tags: self.goals.last().unwrap().tags.clone(),
                 created_at: Utc::now(),
-                last_reviewed: None,
                 review_count: 0,
                 success_rate: 0.0,
+                spaced_rep: todo!(),
+                prerequisites: todo!(),
             }
         }).collect();
 
