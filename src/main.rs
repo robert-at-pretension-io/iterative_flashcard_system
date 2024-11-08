@@ -32,6 +32,30 @@ impl IntoResponse for AppError {
         (status, Html(message)).into_response()
     }
 }
+
+impl From<serde_json::Error> for AppError {
+    fn from(err: serde_json::Error) -> Self {
+        AppError::SystemError(format!("JSON error: {}", err))
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(err: std::io::Error) -> Self {
+        AppError::SystemError(format!("IO error: {}", err))
+    }
+}
+
+impl<E> From<tokio::sync::TryLockError<E>> for AppError {
+    fn from(_: tokio::sync::TryLockError<E>) -> Self {
+        AppError::SystemError("Lock acquisition failed".to_string())
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for AppError {
+    fn from(err: Box<dyn std::error::Error>) -> Self {
+        AppError::SystemError(err.to_string())
+    }
+}
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
