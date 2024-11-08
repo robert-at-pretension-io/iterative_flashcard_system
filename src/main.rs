@@ -45,8 +45,8 @@ impl From<std::io::Error> for AppError {
     }
 }
 
-impl<E> From<tokio::sync::TryLockError<E>> for AppError {
-    fn from(_: tokio::sync::TryLockError<E>) -> Self {
+impl From<tokio::sync::TryLockError> for AppError {
+    fn from(_: tokio::sync::TryLockError) -> Self {
         AppError::SystemError("Lock acquisition failed".to_string())
     }
 }
